@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>Kongsberg Portal</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1"
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+        <link rel="stylesheet" href="../css/style.css">
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+        <script src="./js/portal.js"></script>
+      </head>
+        <body>
+          <div class="header">
+            <h1>Kongsberg SQL Portal</h1>
+            <form action="/logout" method="get">
+              <button type="submit" class="logout">Logout</button>
+            </form>
+          </div>
+
+          <div class="pre-queries">
+            <button onclick="sqlDrumming()">Drumming Data</button>
+            <button onclick="sqlDrummingSAP()">Coil Data w/ SAP Batch</button>
+            <button onclick="sqlDrummingDRUM()">Coil Data w/ Drum No.</button>
+            <button onclick="sqlEwald()">Ewald Data</button>
+            <button onclick="sqlFirewall()">Firewall Data</button>
+            <button onclick="sqlConvo()">Convo Data</button>  
+            <button onclick="sqlMixing()">Mixing Data</button> 
+            <!-- <button onclick="sapLogon()">SAP Logon</button> 
+            <button onclick="sapReadTable()">SAP Read Table</button> 
+            <button onclick="sapTest()">SAP Test</button>
+            <button onclick="sapRfcReadTable()">Read Table</button>  
+            <button onclick="sapNoCoTest()">SAP NoCo Method</button> --> 
+          </div>
+          
+          <form id="sql-form">
+            <h2>If you know SQL, please enter a query below, otherwise, use a pre-built query from the above buttons.</h2>
+            <textarea name="query" id="query" placeholder="SELECT TOP 10 * FROM your_table"></textarea><br>
+            <button type="button" onclick="runQuery()">Run Query</button>
+            <button type ="button" id="csvButton" onclick="downloadCSVPost()">Download CSV</button>
+            <div id="message"></div>
+            <div id="output"></div>
+          </form>
+
+      </body>
+    </html>

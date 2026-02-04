@@ -1,0 +1,9 @@
+{
+  "apiKey": "apiGoesHere",
+  "users": [
+    { "username": "u1", "password": "password!", "sapUser": "SAPUSER1", "sapPassword": "", "isAdmin": true },
+    { "username": "u2", "password": "password", "sapUser": "SAPUSER2", "sapPassword": "", "isAdmin": false },
+    { "username": "u3", "password": "password", "sapUser": "SAPUSER3", "sapPassword": "", "isAdmin": false },
+    { "username": "u4", "password": "password", "sapUser": "SAPUSER4", "sapPassword": "", "isAdmin": false }
+  ]
+}

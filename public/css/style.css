@@ -1,0 +1,145 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f6f8fa;
+    padding: 0;
+    margin: 0;
+}
+
+#sql-form {
+    margin: 10px;
+    width: auto;
+}
+
+.header {
+    background: #e4e4e4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.pre-queries {
+    background: #e4e4e4;
+    border-bottom: 2px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    top: 0;
+    z-index: 100;
+}
+
+.header h1 {
+    margin: 0;
+    color: #0078d7;
+    font-size: 30px;
+    text-shadow: 0 1px 3px #aaaaaa;
+}
+
+.logout {
+    background: #d9534f;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    box-shadow: 0 1px 3px #696969;
+}
+
+.logout:hover {
+    background: #b52b27;
+}
+
+textarea {
+    width: 100%;
+    height: 120px;
+    font-family: monospace;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    margin-top: 20px;
+}
+
+button {
+    margin-top: 10px;
+    margin-right: 30px;
+    padding: 8px 16px;
+    cursor: pointer;
+    background: #0078d7;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px #696969;
+}
+
+button:hover {
+    background: #005fa3;
+}
+
+#csvButton {
+    background: #4CAF50;
+}
+
+#csvButton:hover {
+    background: #3e8e41;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 20px;
+    background: white;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+    font-size: 14px;
+}
+
+th {
+    background: #0078d7;
+    color: white;
+}
+
+tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+#message {
+    margin-top: 15px;
+    font-weight: bold;
+}
+
+#query {
+    width:90%
+}
+
+.dataTables_length, .dataTables_filter {
+    display:inline-block;
+    margin-right: 10px;
+}
+
+.dataTables_info {
+    padding: 10px;
+}
+
+.dataTables_paginate {
+    padding-left: 10px;
+}
+
+.paginate_button {
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+.paginate_button:hover {
+    color:#0078d7
+}
