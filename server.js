@@ -83,6 +83,11 @@ app.get('/private/:page', requireLogin, (req, res) => {
   res.sendFile(filePath);
 });
 
+app.get('/private/images/:image', requireLogin, (req, res) => {
+  const filePath = path.join(__dirname, 'private', 'images', req.params.image);
+  res.sendFile(filePath);
+});
+
 app.get('/private/js/:file', requireLogin, (req, res) => {
   const filePath = path.join(__dirname, 'private', 'js', req.params.file);
   res.sendFile(filePath);
@@ -90,6 +95,11 @@ app.get('/private/js/:file', requireLogin, (req, res) => {
 
 app.get('/private/css/:file', requireLogin, (req, res) => {
   const filePath = path.join(__dirname, 'private', 'css', req.params.file);
+  res.sendFile(filePath);
+});
+
+app.get('/private/assets/:file', (req, res) => {
+  const filePath = path.join(__dirname, 'private', 'assets', req.params.file);
   res.sendFile(filePath);
 });
 

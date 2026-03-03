@@ -53,11 +53,11 @@ body {
 .header-left { display: flex; align-items: center; gap: 12px; }
 
 .brand-icon {
-  width: 28px; height: 28px;
-  background: linear-gradient(135deg, var(--accent2), var(--accent3));
+  width: 32px; height: 32px;
+  /*background: linear-gradient(135deg, var(--accent2), var(--accent3));
   clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(37,99,235,0.35);
+  box-shadow: 0 2px 8px rgba(37,99,235,0.35);*/
 }
 
 .brand-name {
