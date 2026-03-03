@@ -29,6 +29,7 @@ import palletValidationRoutes  from './routes/palletvalidation.js';
 import productionRoutes        from './routes/production.js';
 import relatedRecordsRoutes    from './routes/relatedrecords.js';
 import filterRecordsRoutes     from './routes/filterrecords.js';
+import exportXlsxRoutes        from './routes/exportxlsx.js';
 
 
 
@@ -71,6 +72,7 @@ app.use('/api/palletvalidation', requireLogin,  palletValidationRoutes);
 app.use('/api/production', requireLogin,        productionRoutes);
 app.use('/api/related-records', requireLogin,   relatedRecordsRoutes);
 app.use('/api/filter-records', requireLogin,    filterRecordsRoutes);
+app.use('/api/export-xlsx', requireLogin,       exportXlsxRoutes);
 
 // Serve static front-end files
 app.use(express.static(path.join(process.cwd(), "public")));

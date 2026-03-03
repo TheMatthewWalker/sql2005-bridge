@@ -41,7 +41,7 @@
 
       <div class="tbl-item" data-table="Batches" data-pk="Drum">
         <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/><line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/></svg>
-        Drumming <span class="tbl-tag">MAIN</span>
+        Batches <span class="tbl-tag">MAIN</span>
       </div>
 
       <div class="tbl-item" data-table="Ewald" data-pk="ID">
@@ -96,6 +96,7 @@
       <div class="toolbar-spacer"></div>
       <div class="row-badge" id="row-badge">—</div>
       <button class="btn-export" onclick="exportCSV()">Export CSV</button>
+      <button class="btn-export-xlsx" id="btn-export-xlsx" onclick="exportXLSX()">Export XLSX + Related</button>
     </div>
 
     <!-- Filter bar: appears once columns are known -->

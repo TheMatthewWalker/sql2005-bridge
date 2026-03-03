@@ -366,6 +366,57 @@ function hiddenInput(name, value) {
   return el;
 }
 
+// ── XLSX export — main table + all related sub-tables as separate sheets ──────
+async function exportXLSX() {
+  if (!currentTable) return;
+  if (!(await sessionOk())) return;
+
+  const relations = (DRILLDOWN[currentTable] || []).map(r => ({
+    table: r.table,
+    pkCol: r.pkCol,
+    fkCol: r.fkCol,
+  }));
+
+  const btn  = document.getElementById('btn-export-xlsx');
+  const orig = btn.textContent;
+  btn.textContent = 'Building…';
+  btn.disabled    = true;
+
+  try {
+    const res = await fetch('/api/export-xlsx', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        tableName: currentTable,
+        filter:    activeFilter || null,
+        relations,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      alert('Export failed: ' + (err.error || res.statusText));
+      return;
+    }
+
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = currentTable + '_export_' + new Date().toISOString().slice(0,10) + '.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    alert('Export failed: ' + err.message);
+  } finally {
+    btn.textContent = orig;
+    btn.disabled    = false;
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function buildTableHTML(rows, id) {
   const cols = Object.keys(rows[0]);

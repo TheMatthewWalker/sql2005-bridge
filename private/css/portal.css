@@ -1,4 +1,4 @@
-  :root {
+:root {
       --bg:         #0b0e14;
       --surface:    #111520;
       --surface2:   #161b28;
@@ -189,6 +189,18 @@
       transition: background 0.15s; white-space: nowrap;
     }
     .btn-export:hover { background: rgba(0,204,136,0.08); }
+
+    .btn-export-xlsx {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px; font-weight: 600;
+      letter-spacing: 2px; text-transform: uppercase;
+      padding: 7px 16px; background: transparent;
+      border: 1px solid var(--accent); border-radius: 3px;
+      color: var(--accent); cursor: pointer;
+      transition: background 0.15s; white-space: nowrap;
+    }
+    .btn-export-xlsx:hover { background: rgba(0,170,255,0.08); }
+    .btn-export-xlsx:disabled { opacity: 0.5; cursor: wait; }
 
     /* ── FILTER BAR ── shown below toolbar once a table is loaded */
     .filter-bar {
@@ -476,3 +488,4 @@
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
+ 
