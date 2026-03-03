@@ -5,6 +5,30 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { sapLogon, sapReadTable } from "./sapApi.js";
+import mixingRoutes            from './routes/mixing.js';
+import shipmentMainRoutes      from './routes/shipmentmain.js';
+import destinationsRoutes      from './routes/destinations.js';
+import shipmentLinkRoutes      from './routes/shipmentlink.js';
+import shipmentCostRoutes      from './routes/shipmentcost.js';
+import costTypesRoutes         from './routes/costtypes.js';
+import costElementsRoutes      from './routes/costelements.js';
+import costCentersRoutes       from './routes/costcenters.js';
+import forwardersRoutes        from './routes/forwarders.js';
+import incotermsRoutes         from './routes/incoterms.js';
+import deliveryMainRoutes      from './routes/deliverymain.js';
+import deliveryLinkRoutes      from './routes/deliverylink.js';
+import palletMainRoutes        from './routes/palletmain.js';
+import palletPackagesRoutes    from './routes/palletpackages.js';
+import ratesKNRoutes           from './routes/rateskn.js';
+import ratesTPNRoutes          from './routes/ratestpn.js';
+import forwarderApprovalRoutes from './routes/forwarderapproval.js';
+import assignmentTPNRoutes     from './routes/assignmenttpn.js';
+import palletDataRoutes        from './routes/palletdata.js';
+import packagingDataRoutes     from './routes/packagingdata.js';
+import palletValidationRoutes  from './routes/palletvalidation.js';
+import productionRoutes        from './routes/production.js';
+import relatedRecordsRoutes    from './routes/relatedrecords.js';
+
 
 
 const config = JSON.parse(fs.readFileSync("./config.json"));
@@ -16,11 +40,35 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-  secret: "", //revoked
+  secret: "kongsberg-gbno-bridge",
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 1000 * 60 * 60 }
 }));
+
+app.use('/api/mixing',            mixingRoutes);
+app.use('/api/shipmentmain',      shipmentMainRoutes);
+app.use('/api/destinations',      destinationsRoutes);
+app.use('/api/shipmentlink',      shipmentLinkRoutes);
+app.use('/api/shipmentcost',      shipmentCostRoutes);
+app.use('/api/costtypes',         costTypesRoutes);
+app.use('/api/costelements',      costElementsRoutes);
+app.use('/api/costcenters',       costCentersRoutes);
+app.use('/api/forwarders',        forwardersRoutes);
+app.use('/api/incoterms',         incotermsRoutes);
+app.use('/api/deliverymain',      deliveryMainRoutes);
+app.use('/api/deliverylink',      deliveryLinkRoutes);
+app.use('/api/palletmain',        palletMainRoutes);
+app.use('/api/palletpackages',    palletPackagesRoutes);
+app.use('/api/rateskn',           ratesKNRoutes);
+app.use('/api/ratestpn',          ratesTPNRoutes);
+app.use('/api/forwarderapproval', forwarderApprovalRoutes);
+app.use('/api/assignmenttpn',     assignmentTPNRoutes);
+app.use('/api/palletdata',        palletDataRoutes);
+app.use('/api/packagingdata',     packagingDataRoutes);
+app.use('/api/palletvalidation',  palletValidationRoutes);
+app.use('/api/production',        productionRoutes);
+app.use('/api/related-records',   relatedRecordsRoutes);
 
 // Serve static front-end files
 app.use(express.static(path.join(process.cwd(), "public")));
@@ -36,12 +84,11 @@ app.get('/private/js/:file', requireLogin, (req, res) => {
   res.sendFile(filePath);
 });
 
-//dummy values
-const sqlConfig = {
-  user: "username",
-  password: "password",
-  server: "server",
-  database: "database",
+export const sqlConfig = {
+  user: config.sqlConfig.user,
+  password: config.sqlConfig.password,
+  server: config.sqlConfig.server,
+  database: config.sqlConfig.database,
   options: {
     encrypt: false,
     trustServerCertificate: true
@@ -198,8 +245,8 @@ app.post("/rfc", requireLogin, async (req, res) => {
     }
 
     const rfcParams = {
-      System: "SAP",  //sys code
-      SystemNumber: "01", //sys num
+      System: "KAP",
+      SystemNumber: "01",
       Client: "100",
       User: sapCreds.User,
       Passwd: sapCreds.Passwd,

@@ -1,452 +1,312 @@
-let lastQuery = '';
+// ─────────────────────────────────────────────────────────────────────────────
+// Kongsberg Portal — Table Browser
+// All navigation is via the sidebar. Right-click any row to drill into the
+// related sub-tables for that record.
+// ─────────────────────────────────────────────────────────────────────────────
 
+'use strict';
+
+// ── State ────────────────────────────────────────────────────────────────────
+let currentTable   = null;   // name of the table currently displayed
+let currentPK      = null;   // PK column name for the current table
+let currentRows    = [];     // full recordset for the current table
+let contextRowIdx  = null;   // index into currentRows for the right-clicked row
+let activeDT       = null;   // active DataTable instance
+
+// ── Drill-down map ────────────────────────────────────────────────────────────
+// For each main table: which sub-tables link to it, and via which columns.
+//   pkCol  — column in the PARENT row whose value we look up
+//   fkCol  — column in the CHILD table we filter on
+const DRILLDOWN = {
+  Batches: [
+    { table: 'Coils',   pkCol: 'Drum',    fkCol: 'Batch'  },
+    { table: 'Trace',   pkCol: 'Drum',    fkCol: 'Batch'  },
+    { table: 'Waste',   pkCol: 'Drum',    fkCol: 'Batch'  },
+  ],
+  Ewald: [
+    { table: 'EwaldBoxes',    pkCol: 'ID', fkCol: 'EwaldID' },
+    { table: 'EwaldMessages', pkCol: 'ID', fkCol: 'Batch'   },
+    { table: 'EwaldScrapDocs',pkCol: 'ID', fkCol: 'EwaldID' },
+    { table: 'EwaldWaste',    pkCol: 'ID', fkCol: 'EwaldID' },
+  ],
+  Mixing: [
+    { table: 'MixingMatDocs',  pkCol: 'MixingID', fkCol: 'MixingBatch' },
+    { table: 'MixingMessages', pkCol: 'MixingID', fkCol: 'Batch'        },
+    { table: 'MixingWaste',    pkCol: 'MixingID', fkCol: 'MixingID'     },
+  ],
+  Extrusion: [
+    { table: 'ExtrusionMessages', pkCol: 'ExtBatch', fkCol: 'Batch'    },
+    { table: 'ExtrusionTrace',    pkCol: 'ExtBatch', fkCol: 'ExtBatch' },
+    { table: 'ExtrusionWaste',    pkCol: 'ExtBatch', fkCol: 'ExtBatch' },
+  ],
+  Convo: [
+    { table: 'ConvoMessages', pkCol: 'ConvoID', fkCol: 'Batch'      },
+    { table: 'ConvoTrace',    pkCol: 'ConvoID', fkCol: 'ConvoID'    },
+    { table: 'ConvoWaste',    pkCol: 'ConvoID', fkCol: 'convobatch' },
+  ],
+  Firewall: [
+    { table: 'FirewallMessages', pkCol: 'SAPBatch', fkCol: 'SAPBatch' },
+  ],
+  Staging: [
+    { table: 'StagingItems', pkCol: 'StagingID', fkCol: 'StagingID' },
+  ],
+};
+
+// ── Session management ────────────────────────────────────────────────────────
 setInterval(async () => {
-  const res = await fetch('/session-check');
-  const data = await res.json();
+  const data = await fetch('/session-check').then(r => r.json());
   if (!data.loggedIn) {
-    alert("Your session has expired. Please log in again.");
+    alert('Your session has expired. Please log in again.');
     window.location.href = '/';
   }
-}, 60000 * 5 ); // check every 5 minutes
+}, 300_000); // every 5 minutes
 
-async function checkSession() {
-  const res = await fetch('/session-check');
-  const data = await res.json();
-  return data.loggedIn;
+async function sessionOk() {
+  const data = await fetch('/session-check').then(r => r.json());
+  if (!data.loggedIn) { window.location.href = '/'; return false; }
+  return true;
 }
 
-        async function sqlDrumming() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-              alert("Session expired. Please log in again.");
-              window.location.href = '/';
-              return;
-            }
-            document.getElementById('query').value = 'SELECT * FROM dbo.Batches';
-            runQuery();
-        }
+// ── Sidebar click handlers ────────────────────────────────────────────────────
+document.querySelectorAll('.tbl-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.tbl-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    loadTable(item.dataset.table, item.dataset.pk || null);
+  });
+});
 
-        async function sqlDrummingSAP() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-              alert("Session expired. Please log in again.");
-              window.location.href = '/';
-              return;
-            }
-            document.getElementById('query').value = "SELECT a.Drum, a.Material, a.SAP, a.Customer, a.Batch as Traceability, a.TotalLength, b.Coil FROM dbo.Batches a JOIN dbo.Coils b ON a.Drum = b.Batch WHERE SAP =''";
-            //runQuery();
-        }
+// ── Load a table into the main panel ─────────────────────────────────────────
+async function loadTable(tableName, pkCol) {
+  if (!(await sessionOk())) return;
 
-        async function sqlDrummingDRUM() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-              alert("Session expired. Please log in again.");
-              window.location.href = '/';
-              return;
-            }
-            document.getElementById('query').value = "SELECT a.Drum, a.Material, a.SAP, a.Customer, a.Batch as Traceability, a.TotalLength, b.Coil FROM dbo.Batches a JOIN dbo.Coils b ON a.Drum = b.Batch WHERE Drum =''";
-            //runQuery();
-        }        
+  currentTable  = tableName;
+  currentPK     = pkCol;
+  currentRows   = [];
+  contextRowIdx = null;
 
-        async function sqlEwald() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-                alert("Session expired. Please log in again.");
-                window.location.href = '/';
-                return;
-            }
-            document.getElementById('query').value = 'SELECT * FROM dbo.Ewald';
-            runQuery();
-        }
+  // Toolbar
+  const toolbar = document.getElementById('toolbar');
+  toolbar.style.display = 'flex';
+  document.getElementById('toolbar-title').textContent = tableName;
+  document.getElementById('row-badge').textContent = '…';
 
-        async function sqlFirewall() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-                alert("Session expired. Please log in again.");
-                window.location.href = '/';
-                return;
-            }
-            document.getElementById('query').value = 'SELECT * FROM dbo.Firewall';
-            runQuery();
-        }
+  const hasDrill = !!DRILLDOWN[tableName];
+  document.getElementById('toolbar-hint').textContent = hasDrill
+    ? 'Right-click any row to drill into related sub-tables'
+    : 'No drill-down configured for this table';
 
-        async function sqlConvo() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-                alert("Session expired. Please log in again.");
-                window.location.href = '/';
-                return;
-            }
-            document.getElementById('query').value = 'SELECT * FROM dbo.Convo';
-            runQuery();
-        }
+  // Destroy old DataTable instance cleanly
+  if (activeDT) {
+    try { activeDT.destroy(); } catch (_) {}
+    activeDT = null;
+  }
 
-        async function sqlMixing() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-                alert("Session expired. Please log in again.");
-                window.location.href = '/';
-                return;
-            }
-            document.getElementById('query').value = 'SELECT * FROM dbo.Mixing';
-            runQuery();
-        }
+  // Show spinner
+  const panel = document.getElementById('data-panel');
+  panel.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Loading data…</div>';
 
-        async function sapRfcReadTable() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-                alert("Session expired. Please log in again.");
-                window.location.href = '/';
-                return;
-            }
-            const message = document.getElementById('message');
-            message.style.color = '';
-            message.textContent = 'Connecting to SAP...';
+  try {
+    const res  = await fetch('/query', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ query: `SELECT TOP 500 * FROM dbo.${tableName}` }),
+    });
+    const data = await res.json();
 
-
-            try {
-              const res = await fetch("", { //SAP ASP.NET server address since nodeJS cannot use COM .dll
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include", // important! sends session cookie
-                body: JSON.stringify({ Function: "RFC_READ_TABLE" })
-              });
-
-              const data = await res.json();
-
-              if (!data.success) {
-                message.textContent = '❌ SAP RFC failed: ' + (data.error || "Unknown error");
-                message.style.color = 'red';
-                console.error("SAP RFC Error:", data);
-              } else {
-                message.textContent = '✅ SAP connection successful!';
-                message.style.color = 'green';
-                console.log("RFC Result:", data);
-
-                // Get your output div
-                const outputDiv = document.getElementById("output");
-
-                // If data.result exists, format it nicely
-                if (outputDiv) {
-                // Make the JSON pretty and readable
-                const prettyJson = JSON.stringify(data.result, null, 2);
-                
-                // Optional: syntax-highlight for readability
-                outputDiv.innerHTML = `<pre style="
-                    background:#f4f4f4;
-                    padding:10px;
-                    border-radius:8px;
-                    white-space:pre-wrap;
-                    word-break:break-word;
-                    font-family:monospace;
-                ">${prettyJson}</pre>`;
-                } else {
-                console.warn("Output div not found on page!");
-                }
-              }
-            } catch (err) {
-              message.textContent = '❌ Error: ' + err.message;
-              message.style.color = 'red';
-            }
-        }
-
-        async function sapTest() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-                alert("Session expired. Please log in again.");
-                window.location.href = '/';
-                return;
-            }
-            const message = document.getElementById('message');
-            message.style.color = '';
-            message.textContent = 'Connecting to SAP...';
-
-            try {
-              const res = await fetch("", {  //SAP ASP.NET server address since nodeJS cannot use COM .dll
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include", // important! sends session cookie
-                body: JSON.stringify({ FunctionModule: "STFC_CONNECTION" })
-              });
-
-              const data = await res.json();
-
-              if (!data.success) {
-                message.textContent = '❌ SAP RFC failed: ' + (data.error || "Unknown error");
-                message.style.color = 'red';
-                console.error("SAP RFC Error:", data);
-              } else {
-                message.textContent = '✅ SAP connection successful!';
-                message.style.color = 'green';
-                console.log("RFC Result:", data);
-              }
-            } catch (err) {
-              message.textContent = '❌ Error: ' + err.message;
-              message.style.color = 'red';
-            }
-        }
-
-        async function sapNoCoTest() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-                alert("Session expired. Please log in again.");
-                window.location.href = '/';
-                return;
-            }
-            const message = document.getElementById('message');
-            message.style.color = '';
-            message.textContent = 'Connecting to SAP...';
-
-            try {
-              const res = await fetch("", {  //SAP ASP.NET server address since nodeJS cannot use COM .dll
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include", // important! sends session cookie
-                body: JSON.stringify({ FunctionModule: "STFC_CONNECTION" })
-              });
-
-              const data = await res.json();
-
-              if (!data.success) {
-                message.textContent = '❌ SAP RFC failed: ' + (data.error || "Unknown error");
-                message.style.color = 'red';
-                console.error("SAP RFC Error:", data);
-              } else {
-                message.textContent = '✅ SAP connection successful!';
-                message.style.color = 'green';
-                console.log("RFC Result:", data);
-              }
-            } catch (err) {
-              message.textContent = '❌ Error: ' + err.message;
-              message.style.color = 'red';
-            }
-        }
-
-        async function runQuery() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-                alert("Session expired. Please log in again.");
-                window.location.href = '/';
-                return;
-            }
-            const query = document.getElementById('query').value;
-            lastQuery = query;
-            const message = document.getElementById('message');
-            const output = document.getElementById('output');
-
-            message.style.color = '';
-            message.textContent = 'Running query...';
-            output.innerHTML = '';
-
-            try {
-              const res = await fetch('/query', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'x-api-key': '123' // match this to api key in config
-                },
-                body: JSON.stringify({ query })
-              });
-
-              const data = await res.json();
-
-              if (!data.success) {
-                message.textContent = '❌ ' + data.error;
-                message.style.color = 'red';
-                return;
-              }
-
-              let html = '';
-
-              if (data.rowsAffected && data.rowsAffected.length > 0) {
-                html += '<div>✅ Rows affected: ' + data.rowsAffected.join(', ') + '</div>';
-              }
-
-              if (data.recordset && data.recordset.length > 0) {
-
-                const headers = Object.keys(data.recordset[0]);
-
-                let html = '<table id="resultsTable"><thead>';
-                html += '<tr>';
-                headers.forEach(h => html += '<th>' + h + '</th>');
-                html += '</tr></thead><tbody>';
-
-                data.recordset.forEach(row => {
-                  html += '<tr>';
-                  headers.forEach(h => {
-                    let value = row[h];
-                    if (value === null || value === undefined) value = '';
-                    value = String(value)
-                      .replace(/&/g, "&amp;")
-                      .replace(/</g, "&lt;")
-                      .replace(/>/g, "&gt;")
-                      .replace(/"/g, "&quot;");
-                    html += "<td>" + value + "</td>";
-
-                  });
-                  html += '</tr>';
-                });
-                  html += '</tbody></table>';
-
-                  output.innerHTML = html;
-                  document.getElementById('output').innerHTML = html;
-                  new DataTable('#resultsTable');
-
-              } else if (!data.recordset || data.recordset.length === 0) {
-
-                html += '<div>No rows returned.</div>';
-                output.innerHTML = html;
-
-              }
-              message.textContent = '';
-
-            } catch (err) {
-              message.textContent = '❌ Error: ' + err.message;
-            }
-        }
-
-        async function downloadCSV() {
-            const loggedIn = await checkSession();
-            if (!loggedIn) {
-                alert("Session expired. Please log in again.");
-                window.location.href = '/';
-                return;
-            }
-            if (!lastQuery) {
-              alert('Run a query first!');
-              return;
-            }
-            const encoded = encodeURIComponent(lastQuery);
-            const url = '../../query-csv?query=' + encoded + '&key=123'; //match this to api key in config
-            window.open(url, '_blank');
-        }
-
-        async function downloadCSVPost() {
-          const loggedIn = await checkSession();
-          if (!loggedIn) {
-              alert("Session expired. Please log in again.");
-              window.location.href = '/';
-              return;
-          }
-          if (!lastQuery) {
-            alert('Run a query first!');
-            return;
-          }
-          
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = '/query-csv';
-          
-          const queryInput = document.createElement('input');
-          queryInput.type = 'hidden';
-          queryInput.name = 'query';
-          queryInput.value = lastQuery;
-          
-          const keyInput = document.createElement('input');
-          keyInput.type = 'hidden';
-          keyInput.name = 'key';
-          keyInput.value = '123';  //match this to api key in config
-          
-          form.appendChild(queryInput);
-          form.appendChild(keyInput);
-          document.body.appendChild(form);
-          form.submit();
-          document.body.removeChild(form);
-        }
-
-// --------------------------------------
-// SAP: LOGON (calls ASP.NET backend)
-// --------------------------------------
-async function sapLogon() {
-    if (!(checkSession())) return;
-
-    const msg = document.getElementById("message");
-    msg.textContent = "Connecting to SAP...";
-    msg.style.color = "";
-
-    try {
-        const res = await fetch("/sap/logon", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-                user: "youruser",
-                password: "yourpass"
-            })
-        });
-
-        const data = await res.json();
-        if (!data.connected) {
-            msg.textContent = "❌ SAP logon failed.";
-            msg.style.color = "red";
-        } else {
-            msg.textContent = "✅ SAP logon successful!";
-            msg.style.color = "green";
-        }
-        console.log("SAP Logon →", data);
-
-    } catch (err) {
-        msg.textContent = "❌ " + err.message;
-        msg.style.color = "red";
+    if (!data.success) {
+      panel.innerHTML = errorBlock(data.error || 'Query failed');
+      document.getElementById('row-badge').textContent = 'error';
+      return;
     }
-}
 
-
-// ----------------------------------------------------
-// SAP: READ TABLE (calls ASP.NET backend via queue)
-// ----------------------------------------------------
-async function sapReadTable() {
-    if (!(checkSession())) return;
-
-    const msg = document.getElementById("message");
-    const output = document.getElementById("output");
-
-    msg.textContent = "Reading table from SAP...";
-    msg.style.color = "";
-    output.innerHTML = "";
-
-    try {
-        const res = await fetch("/sap/read-table", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-                tableName: "MARA",
-                fields: ["MATNR", "MTART"],
-                options: ["MTART = 'FERT'"],
-                rowCount: 50,
-                delimiter: ";"
-            })
-        });
-
-        const data = await res.json();
-
-        if (data.error || data.detail) {
-            msg.textContent = "❌ SAP error: " + (data.error || data.detail);
-            msg.style.color = "red";
-            console.error("SAP READ ERROR:", data);
-            return;
-        }
-
-        msg.textContent = "✅ SAP table retrieved";
-        msg.style.color = "green";
-
-        // Pretty-print output
-        output.innerHTML = `
-            <pre style="
-                background:#f7f7f7;
-                padding:10px;
-                border-radius:8px;
-                white-space:pre-wrap;
-                font-family:monospace;
-            ">${JSON.stringify(data, null, 2)}</pre>
-        `;
-
-        console.log("SAP READ RESULT →", data);
-
-    } catch (err) {
-        msg.textContent = "❌ " + err.message;
-        msg.style.color = "red";
+    if (!data.recordset || data.recordset.length === 0) {
+      panel.innerHTML = emptyBlock();
+      document.getElementById('row-badge').textContent = '0 rows';
+      return;
     }
+
+    currentRows = data.recordset;
+    document.getElementById('row-badge').textContent = `${data.recordset.length} rows`;
+
+    // Render table
+    panel.innerHTML = buildTableHTML(data.recordset, 'main-dt');
+    activeDT = new DataTable('#main-dt', { pageLength: 25, scrollX: true });
+
+    // Attach right-click listener to each body row
+    document.querySelectorAll('#main-dt tbody tr').forEach((tr, i) => {
+      tr.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        contextRowIdx = i;
+        showCtx(e, tableName);
+      });
+    });
+
+  } catch (err) {
+    panel.innerHTML = errorBlock(err.message);
+    document.getElementById('row-badge').textContent = 'error';
+  }
 }
 
+// ── Context menu ──────────────────────────────────────────────────────────────
+function showCtx(e, tableName) {
+  const menu  = document.getElementById('ctx-menu');
+  const drill = document.getElementById('ctx-drill');
+
+  document.getElementById('ctx-label').textContent = `dbo.${tableName}`;
+  drill.classList.toggle('disabled', !DRILLDOWN[tableName]);
+
+  menu.style.display = 'block';
+  // Keep menu inside viewport
+  const x = Math.min(e.clientX, window.innerWidth  - 240);
+  const y = Math.min(e.clientY, window.innerHeight - 140);
+  menu.style.left = `${x}px`;
+  menu.style.top  = `${y}px`;
+}
+
+function closeCtx() {
+  document.getElementById('ctx-menu').style.display = 'none';
+}
+
+document.addEventListener('click',   closeCtx);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeCtx(); closeDrilldown(); }
+});
+
+function copyRow() {
+  closeCtx();
+  if (contextRowIdx === null || !currentRows[contextRowIdx]) return;
+  const row  = currentRows[contextRowIdx];
+  const text = Object.entries(row).map(([k, v]) => `${k}: ${v ?? ''}`).join('\n');
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
+// ── Drill-down ────────────────────────────────────────────────────────────────
+async function openDrilldown() {
+  closeCtx();
+  if (contextRowIdx === null) return;
+
+  const relations = DRILLDOWN[currentTable];
+  if (!relations) return;
+
+  const parentRow = currentRows[contextRowIdx];
+
+  // Show modal immediately with spinner
+  const overlay = document.getElementById('dd-overlay');
+  const body    = document.getElementById('dd-body');
+  overlay.classList.add('open');
+  document.getElementById('dd-title').textContent    = `Related Records — ${currentTable}`;
+  document.getElementById('dd-subtitle').textContent = '';
+  body.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Fetching related data…</div>';
+
+  // Fetch each sub-table in parallel
+  const results = await Promise.all(
+    relations.map(rel =>
+      fetch('/api/related-records', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          tableName: rel.table,
+          fkCol:     rel.fkCol,
+          fkValue:   parentRow[rel.pkCol],
+        }),
+      })
+      .then(r => r.json())
+      .then(data => ({ rel, data }))
+      .catch(err => ({ rel, data: { success: false, error: err.message } }))
+    )
+  );
+
+  // Build modal content
+  let html = '';
+  for (const { rel, data } of results) {
+    const pkVal = parentRow[rel.pkCol];
+    html += `<div class="dd-section">${rel.table}
+      <span style="color:var(--text-dim);font-size:9px;margin-left:8px;letter-spacing:1px">
+        ${rel.fkCol} = ${esc(String(pkVal ?? ''))}
+      </span>
+    </div>`;
+
+    if (!data.success || !data.recordset || data.recordset.length === 0) {
+      html += `<div class="dd-empty">No related records found in ${rel.table}.</div>`;
+    } else {
+      html += buildTableHTML(data.recordset, `dd-${rel.table}`);
+    }
+  }
+
+  body.innerHTML = html || '<div class="loading-wrap">No related data configured.</div>';
+
+  // Init DataTables for each sub-table that has rows
+  results.forEach(({ rel, data }) => {
+    if (data.recordset && data.recordset.length > 0) {
+      try { new DataTable(`#dd-${rel.table}`, { pageLength: 10, scrollX: true }); } catch (_) {}
+    }
+  });
+}
+
+function closeDrilldown() {
+  document.getElementById('dd-overlay').classList.remove('open');
+}
+
+document.getElementById('dd-overlay').addEventListener('click', function (e) {
+  if (e.target === this) closeDrilldown();
+});
+
+// ── CSV export ────────────────────────────────────────────────────────────────
+async function exportCSV() {
+  if (!currentTable) return;
+  const form   = document.createElement('form');
+  form.method  = 'POST';
+  form.action  = '/query-csv';
+  const q = input('query', `SELECT * FROM dbo.${currentTable}`);
+  const k = input('key',   'you-will-never-guess-this-ka');
+  form.append(q, k);
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
+}
+
+function input(name, value) {
+  const el = document.createElement('input');
+  el.type = 'hidden'; el.name = name; el.value = value;
+  return el;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function buildTableHTML(rows, id) {
+  const cols = Object.keys(rows[0]);
+  let h = `<table id="${id}" style="width:100%"><thead><tr>`;
+  cols.forEach(c => { h += `<th>${esc(c)}</th>`; });
+  h += '</tr></thead><tbody>';
+  rows.forEach(row => {
+    h += '<tr>';
+    cols.forEach(c => {
+      let v = row[c]; if (v === null || v === undefined) v = '';
+      h += `<td>${esc(String(v))}</td>`;
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function errorBlock(msg) {
+  return `<div class="loading-wrap" style="color:var(--error)">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px">✕ ${esc(msg)}</span>
+  </div>`;
+}
+
+function emptyBlock() {
+  return `<div class="loading-wrap" style="flex-direction:column;gap:10px">
+    <span style="font-size:36px;opacity:.15">∅</span>
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim)">No data returned</span>
+  </div>`;
+}
