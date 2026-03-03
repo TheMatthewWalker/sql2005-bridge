@@ -28,6 +28,7 @@ import packagingDataRoutes     from './routes/packagingdata.js';
 import palletValidationRoutes  from './routes/palletvalidation.js';
 import productionRoutes        from './routes/production.js';
 import relatedRecordsRoutes    from './routes/relatedrecords.js';
+import filterRecordsRoutes     from './routes/filterrecords.js';
 
 
 
@@ -46,29 +47,30 @@ app.use(session({
   cookie: { maxAge: 1000 * 60 * 60 }
 }));
 
-app.use('/api/mixing',            mixingRoutes);
-app.use('/api/shipmentmain',      shipmentMainRoutes);
-app.use('/api/destinations',      destinationsRoutes);
-app.use('/api/shipmentlink',      shipmentLinkRoutes);
-app.use('/api/shipmentcost',      shipmentCostRoutes);
-app.use('/api/costtypes',         costTypesRoutes);
-app.use('/api/costelements',      costElementsRoutes);
-app.use('/api/costcenters',       costCentersRoutes);
-app.use('/api/forwarders',        forwardersRoutes);
-app.use('/api/incoterms',         incotermsRoutes);
-app.use('/api/deliverymain',      deliveryMainRoutes);
-app.use('/api/deliverylink',      deliveryLinkRoutes);
-app.use('/api/palletmain',        palletMainRoutes);
-app.use('/api/palletpackages',    palletPackagesRoutes);
-app.use('/api/rateskn',           ratesKNRoutes);
-app.use('/api/ratestpn',          ratesTPNRoutes);
-app.use('/api/forwarderapproval', forwarderApprovalRoutes);
-app.use('/api/assignmenttpn',     assignmentTPNRoutes);
-app.use('/api/palletdata',        palletDataRoutes);
-app.use('/api/packagingdata',     packagingDataRoutes);
-app.use('/api/palletvalidation',  palletValidationRoutes);
-app.use('/api/production',        productionRoutes);
-app.use('/api/related-records',   relatedRecordsRoutes);
+app.use('/api/mixing', requireLogin,            mixingRoutes);
+app.use('/api/shipmentmain', requireLogin,      shipmentMainRoutes);
+app.use('/api/destinations', requireLogin,      destinationsRoutes);
+app.use('/api/shipmentlink', requireLogin,      shipmentLinkRoutes);
+app.use('/api/shipmentcost', requireLogin,      shipmentCostRoutes);
+app.use('/api/costtypes', requireLogin,         costTypesRoutes);
+app.use('/api/costelements', requireLogin,      costElementsRoutes);
+app.use('/api/costcenters', requireLogin,       costCentersRoutes);
+app.use('/api/forwarders', requireLogin,        forwardersRoutes);
+app.use('/api/incoterms', requireLogin,         incotermsRoutes);
+app.use('/api/deliverymain', requireLogin,      deliveryMainRoutes);
+app.use('/api/deliverylink', requireLogin,      deliveryLinkRoutes);
+app.use('/api/palletmain', requireLogin,        palletMainRoutes);
+app.use('/api/palletpackages', requireLogin,    palletPackagesRoutes);
+app.use('/api/rateskn', requireLogin,           ratesKNRoutes);
+app.use('/api/ratestpn', requireLogin,          ratesTPNRoutes);
+app.use('/api/forwarderapproval', requireLogin, forwarderApprovalRoutes);
+app.use('/api/assignmenttpn', requireLogin,     assignmentTPNRoutes);
+app.use('/api/palletdata', requireLogin,        palletDataRoutes);
+app.use('/api/packagingdata', requireLogin,     packagingDataRoutes);
+app.use('/api/palletvalidation', requireLogin,  palletValidationRoutes);
+app.use('/api/production', requireLogin,        productionRoutes);
+app.use('/api/related-records', requireLogin,   relatedRecordsRoutes);
+app.use('/api/filter-records', requireLogin,    filterRecordsRoutes);
 
 // Serve static front-end files
 app.use(express.static(path.join(process.cwd(), "public")));

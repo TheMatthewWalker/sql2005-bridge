@@ -8,8 +8,7 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-  <link rel="stylesheet" href="./css/style.css">
-  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/portal.css">
 </head>
 <body>
 
@@ -88,16 +87,37 @@
   <!-- CONTENT -->
   <div class="content">
 
+    <!-- Top toolbar: table name + row count + export -->
     <div class="content-toolbar" id="toolbar" style="display:none;">
       <div>
         <div class="toolbar-title" id="toolbar-title">—</div>
-        <div class="toolbar-hint" id="toolbar-hint"></div>
+        <div class="toolbar-hint"  id="toolbar-hint"></div>
       </div>
       <div class="toolbar-spacer"></div>
       <div class="row-badge" id="row-badge">—</div>
       <button class="btn-export" onclick="exportCSV()">Export CSV</button>
     </div>
 
+    <!-- Filter bar: appears once columns are known -->
+    <div class="filter-bar" id="filter-bar">
+      <span class="filter-label">Filter</span>
+
+      <select id="filter-col" title="Column to filter on"></select>
+
+      <select id="filter-mode" title="Match type">
+        <option value="contains">Contains</option>
+        <option value="exact">Exact match</option>
+        <option value="starts">Starts with</option>
+      </select>
+
+      <input id="filter-val" type="text" placeholder="Enter value…" autocomplete="off">
+
+      <button class="btn-filter-search" onclick="applyFilter()">Search</button>
+      <button class="btn-filter-clear"  id="btn-clear" onclick="clearFilter()">Clear filter</button>
+      <span  class="filter-active-badge" id="filter-badge">FILTERED</span>
+    </div>
+
+    <!-- Data output -->
     <div class="data-panel" id="data-panel">
       <div class="placeholder">
         <div class="placeholder-hex">⬡</div>
@@ -130,7 +150,7 @@
   <div class="dd-modal">
     <div class="dd-header">
       <div class="dd-header-text">
-        <div class="dd-title"  id="dd-title">Related Records</div>
+        <div class="dd-title"    id="dd-title">Related Records</div>
         <div class="dd-subtitle" id="dd-subtitle"></div>
       </div>
       <button class="dd-close" onclick="closeDrilldown()">✕</button>
