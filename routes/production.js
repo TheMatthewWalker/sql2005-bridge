@@ -85,7 +85,7 @@ router.get('/coils/batch/:batch', async (req, res) => {
     const pool = await getPool();
     const result = await pool.request()
       .input('batch', sql.NVarChar(20), req.params.batch)
-      .query('SELECT * FROM dbo.Coils WHERE Batch = @batch');
+      .query('SELECT Coil FROM dbo.Coils WHERE Batch = @batch');
     res.json(result.recordset);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -115,7 +115,7 @@ router.get('/waste/batch/:batch', async (req, res) => {
     const pool = await getPool();
     const result = await pool.request()
       .input('batch', sql.NVarChar(20), req.params.batch)
-      .query('SELECT * FROM dbo.Waste WHERE Batch = @batch');
+      .query('SELECT Reason, Length, Weight FROM dbo.Waste WHERE Batch = @batch');
     res.json(result.recordset);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

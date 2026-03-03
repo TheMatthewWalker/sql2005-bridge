@@ -15,7 +15,7 @@ let activeFilter   = null;   // { col, mode, val } or null
 const DRILLDOWN = {
   Batches: [
     { table: 'Coils',   pkCol: 'Drum',    fkCol: 'Batch'  },
-    // { table: 'Trace',   pkCol: 'Drum',    fkCol: 'Batch'  },
+    //{ table: 'Trace',   pkCol: 'Drum',    fkCol: 'Batch'  },
     { table: 'Waste',   pkCol: 'Drum',    fkCol: 'Batch'  },
   ],
   Ewald: [
@@ -27,7 +27,7 @@ const DRILLDOWN = {
   Mixing: [
     { table: 'MixingMatDocs',  pkCol: 'MixingID', fkCol: 'MixingBatch' },
     { table: 'MixingMessages', pkCol: 'MixingID', fkCol: 'Batch'       },
-    { table: 'MixingWaste',    pkCol: 'MixingID', fkCol: 'MixingID'    },
+    //{ table: 'MixingWaste',    pkCol: 'MixingID', fkCol: 'MixingID'    },
   ],
   Extrusion: [
     { table: 'ExtrusionMessages', pkCol: 'ExtBatch', fkCol: 'Batch'    },
@@ -173,13 +173,22 @@ async function loadTable(tableName, pkCol, filter = null) {
     document.getElementById('data-panel').innerHTML = buildTableHTML(records, 'main-dt');
     activeDT = new DataTable('#main-dt', { pageLength: 25, scrollX: true });
 
-    // Right-click handlers
-    document.querySelectorAll('#main-dt tbody tr').forEach((tr, i) => {
-      tr.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        contextRowIdx = i;
-        showCtx(e, tableName);
-      });
+    // Right-click via delegation on the tbody so it works across all pages.
+    // DataTables re-renders rows on page change; attaching to individual <tr>
+    // elements would lose the listeners. One delegated listener on the static
+    // table element survives all page changes.
+    document.querySelector('#main-dt tbody').addEventListener('contextmenu', e => {
+      const tr = e.target.closest('tr');
+      if (!tr) return;
+      e.preventDefault();
+
+      // DataTables tracks each row with an internal index that corresponds
+      // directly to the order rows were added — which matches currentRows.
+      const dtRow = activeDT.row(tr);
+      if (!dtRow || dtRow.index() === undefined) return;
+      contextRowIdx = dtRow.index();
+
+      showCtx(e, tableName);
     });
 
     updateFilterUI(filter);

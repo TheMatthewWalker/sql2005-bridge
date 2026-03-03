@@ -30,7 +30,6 @@ const ALLOWED_TABLES = new Set([
 
   // Main tables (sidebar loads)
   'Batches', 'Mixing', 'Extrusion', 'Convo', 'Ewald', 'Firewall', 'Staging',
-  'ShipmentMain', 'PalletMain', 'DeliveryMain',
   // Reference tables
 
 ]);
@@ -58,15 +57,8 @@ router.post('/', async (req, res) => {
   }
 
   // --- Determine the correct mssql type for the value ----------------------
-  // We inspect the JS type of fkValue and choose the most appropriate binding.
-  // For numeric values that fit in a BigInt we use BigInt; otherwise NVarChar.
-  let sqlType;
-  const numVal = Number(fkValue);
-  if (!isNaN(numVal) && Number.isInteger(numVal) && String(fkValue).trim() !== '') {
-    sqlType = sql.BigInt;
-  } else {
-    sqlType = sql.NVarChar(256);
-  }
+  // We use NVarChar for all parameters for simplicity, since SQL Server will perform implicit conversions as needed.
+  const sqlType = sql.NVarChar(256);
 
   // --- Execute parameterised query ------------------------------------------
   // Table and column names are NOT user-controlled values; tableName comes from

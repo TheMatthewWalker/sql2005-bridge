@@ -35,8 +35,6 @@ const ALLOWED_TABLES = new Set([
   'ConvoMessages', 'ConvoTrace', 'ConvoWaste',
   'FirewallMessages',
   'StagingItems',
-  'ShipmentMain', 'PalletMain', 'DeliveryMain',
-  'ShipmentLink', 'ShipmentCost', 'PalletPackages', 'DeliveryLink',
 ]);
 
 // Column names must be safe identifiers only
