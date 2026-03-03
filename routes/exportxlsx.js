@@ -38,19 +38,21 @@ const ALLOWED_TABLES = new Set([
   'ExtrusionMessages', 'ExtrusionTrace', 'ExtrusionWaste',
   'ConvoMessages', 'ConvoTrace', 'ConvoWaste',
   'FirewallMessages', 'StagingItems',
+  'ShipmentMain', 'PalletMain', 'DeliveryMain',
+  'ShipmentLink', 'ShipmentCost', 'PalletPackages', 'DeliveryLink',
 ]);
 
 const VALID_COL_RE   = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 const VALID_MODES    = new Set(['contains', 'exact', 'starts']);
 
 // ── Styling constants ─────────────────────────────────────────────────────────
-const HEADER_FILL  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F1520' } };
-const HEADER_FONT  = { name: 'Arial', bold: true, color: { argb: 'FF00AAFF' }, size: 10 };
+const HEADER_FILL  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } }; // dark navy
+const HEADER_FONT  = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }; // white on dark header
 const HEADER_ALIGN = { vertical: 'middle', horizontal: 'left' };
-const BODY_FONT    = { name: 'Arial', size: 10 };
-const EVEN_FILL    = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF161B28' } };
-const ODD_FILL     = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111520' } };
-const BORDER_STYLE = { style: 'thin', color: { argb: 'FF1E2535' } };
+const BODY_FONT    = { name: 'Arial', size: 10, color: { argb: 'FF000000' } };              // black body text
+const EVEN_FILL    = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; // white rows
+const ODD_FILL     = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE9EEF4' } }; // light grey-blue rows
+const BORDER_STYLE = { style: 'thin', color: { argb: 'FFBFCAD4' } };                        // subtle grey border
 const CELL_BORDER  = { top: BORDER_STYLE, bottom: BORDER_STYLE, left: BORDER_STYLE, right: BORDER_STYLE };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -104,6 +106,12 @@ function writeSheet(ws, rows) {
     });
     col.width = Math.min(maxLen + 3, 52);
   });
+
+  // Auto-filter on all columns
+  ws.autoFilter = {
+    from: { row: 1, column: 1 },
+    to:   { row: 1, column: cols.length },
+  };
 
   // Freeze the header row
   ws.views = [{ state: 'frozen', ySplit: 1 }];
