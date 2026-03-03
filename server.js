@@ -84,6 +84,11 @@ app.get('/private/js/:file', requireLogin, (req, res) => {
   res.sendFile(filePath);
 });
 
+app.get('/private/css/:file', requireLogin, (req, res) => {
+  const filePath = path.join(__dirname, 'private', 'css', req.params.file);
+  res.sendFile(filePath);
+});
+
 export const sqlConfig = {
   user: config.sqlConfig.user,
   password: config.sqlConfig.password,
