@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Kongsberg Portal — Raw SQL Console</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+  <link rel="stylesheet" href="./css/portal.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="brand-icon"><div class="brand-icon"><img src="./images/logo32.png" alt="Kongsberg Logo"></div></div>
+    <span class="brand-name">Kongsberg</span>
+    <div class="brand-sep"></div>
+    <span class="brand-module">Raw SQL Console</span>
+  </div>
+  <div class="header-right">
+    <a href="/private/portal.html" class="btn-logout">Back to Portal</a>
+    <a href="/logout" class="btn-logout">Sign Out</a>
+  </div>
+</div>
+
+<!-- BODY -->
+<div class="app-body">
+  <!-- Simple placeholder sidebar to keep layout consistent -->
+  <aside class="sidebar">
+    <div class="sidebar-header">Tools</div>
+    <div class="sidebar-scroll">
+      <div class="tbl-item active">
+        <svg class="tbl-icon" viewBox="0 0 13 13" fill="none">
+          <rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/>
+          <line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/>
+        </svg>
+        Raw SQL Console
+      </div>
+    </div>
+  </aside>
+
+  <div class="content">
+    <div class="content-toolbar">
+      <div>
+        <div class="toolbar-title">Raw SQL Console</div>
+        <div class="toolbar-hint">Ad‑hoc queries for testing. Uses the /query endpoint and your current login/session.</div>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <div class="row-badge" id="rawsql-badge">Idle</div>
+    </div>
+
+    <div class="rawsql-panel">
+      <div class="rawsql-header">
+        <div>
+          <div class="rawsql-title">Execute SQL against SQL2005 Bridge</div>
+          <div class="rawsql-subtitle">
+            For testing only. All commands run as the bridge service user and are logged by SQL Server. Destructive keywords are blocked for non‑admin users.
+          </div>
+        </div>
+        <div class="rawsql-hint">Ctrl+Enter to run</div>
+      </div>
+
+      <textarea id="rawsql-input" class="rawsql-input" rows="6" spellcheck="false"
+        placeholder="SELECT TOP 100 * FROM dbo.Batches;&#10;-- Press Ctrl+Enter or click Run to execute"></textarea>
+
+      <div class="rawsql-actions">
+        <button type="button" class="btn-filter-clear" id="rawsql-clear">Clear</button>
+        <button type="button" class="btn-filter-search" id="rawsql-run">Run SQL</button>
+      </div>
+
+      <div id="rawsql-result" class="rawsql-result">
+        <div class="report-empty">No query executed yet.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="./js/rawsql.js"></script>
+</body>
+</html>
+

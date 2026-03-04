@@ -15,19 +15,19 @@ let activeFilter   = null;   // { col, mode, val } or null
 const DRILLDOWN = {
   Batches: [
     { table: 'Coils',   pkCol: 'Drum',    fkCol: 'Batch'  },
-    //{ table: 'Trace',   pkCol: 'Drum',    fkCol: 'Batch'  },
+    // { table: 'Trace',   pkCol: 'Drum',    fkCol: 'Batch'  },
     { table: 'Waste',   pkCol: 'Drum',    fkCol: 'Batch'  },
   ],
   Ewald: [
     { table: 'EwaldBoxes',     pkCol: 'ID', fkCol: 'EwaldID' },
     { table: 'EwaldMessages',  pkCol: 'ID', fkCol: 'Batch'   },
-    { table: 'EwaldScrapDocs', pkCol: 'ID', fkCol: 'EwaldID' },
+    //{ table: 'EwaldScrapDocs', pkCol: 'ID', fkCol: 'EwaldID' },
     { table: 'EwaldWaste',     pkCol: 'ID', fkCol: 'EwaldID' },
   ],
   Mixing: [
     { table: 'MixingMatDocs',  pkCol: 'MixingID', fkCol: 'MixingBatch' },
     { table: 'MixingMessages', pkCol: 'MixingID', fkCol: 'Batch'       },
-    //{ table: 'MixingWaste',    pkCol: 'MixingID', fkCol: 'MixingID'    },
+    // { table: 'MixingWaste',    pkCol: 'MixingID', fkCol: 'MixingID'    },
   ],
   Extrusion: [
     { table: 'ExtrusionMessages', pkCol: 'ExtBatch', fkCol: 'Batch'    },
@@ -59,13 +59,19 @@ async function sessionOk() {
   return true;
 }
 
-// ── Sidebar ───────────────────────────────────────────────────────────────────
-document.querySelectorAll('.tbl-item').forEach(item => {
+// ── Sidebar — table items only (report items handled separately below) ──────
+document.querySelectorAll('.tbl-item:not(.report-item)').forEach(item => {
   item.addEventListener('click', () => {
     document.querySelectorAll('.tbl-item').forEach(i => i.classList.remove('active'));
     item.classList.add('active');
-    // Switching table always resets the filter
+    // Switching table always resets the filter and hides the report panel
     activeFilter = null;
+    currentReport = null;
+    if (typeof reportChart !== 'undefined' && reportChart) {
+      reportChart.destroy(); reportChart = null;
+    }
+    document.getElementById('report-panel').style.display = 'none';
+    document.getElementById('data-panel').style.display   = '';
     loadTable(item.dataset.table, item.dataset.pk || null);
   });
 });
@@ -275,6 +281,8 @@ function copyRow() {
 // ── Drill-down ────────────────────────────────────────────────────────────────
 async function openDrilldown() {
   closeCtx();
+  if (!(await sessionOk())) return;
+
   if (contextRowIdx === null) return;
   const relations = DRILLDOWN[currentTable];
   if (!relations) return;
@@ -333,6 +341,7 @@ document.getElementById('dd-overlay').addEventListener('click', function (e) {
 // ── CSV export (respects active filter) ──────────────────────────────────────
 async function exportCSV() {
   if (!currentTable) return;
+  if (!(await sessionOk())) return;
 
   let query;
   if (activeFilter) {
@@ -456,4 +465,246 @@ function emptyBlock() {
     <span style="font-size:36px;opacity:.15">∅</span>
     <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim)">No matching records found</span>
   </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REPORTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+let currentReport = null;   // name of the active report
+let reportChart   = null;   // Chart.js instance — destroyed before each redraw
+
+// Palette — one colour per bar, cycling if more bars than colours
+const CHART_COLOURS = [
+  '#2563EB','#3B82F6','#059669','#D97706','#DC2626',
+  '#7C3AED','#0891B2','#65A30D','#DB2777','#EA580C',
+];
+
+// ── Default date range: last 90 days ─────────────────────────────────────────
+function defaultDates() {
+  const to   = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 90);
+  return {
+    from: from.toISOString().slice(0, 10),
+    to:   to.toISOString().slice(0, 10),
+  };
+}
+
+// ── Sidebar — report items ────────────────────────────────────────────────────
+document.querySelectorAll('.report-item').forEach(item => {
+  item.addEventListener('click', () => {
+    // Deselect all sidebar items
+    document.querySelectorAll('.tbl-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+
+    currentReport = item.dataset.report;
+
+    // Hide table UI, show report panel
+    document.getElementById('toolbar').style.display    = 'none';
+    document.getElementById('filter-bar').classList.remove('visible');
+    document.getElementById('data-panel').style.display = 'none';
+    document.getElementById('report-panel').style.display = 'flex';
+
+    // Set title
+    document.getElementById('report-title').textContent = `${currentReport} — Report`;
+    document.getElementById('report-hint').textContent  = 'Set a date range and click Run';
+
+    // Pre-fill date inputs with defaults if empty
+    const fromEl = document.getElementById('rpt-from');
+    const toEl   = document.getElementById('rpt-to');
+    if (!fromEl.value || !toEl.value) {
+      const d = defaultDates();
+      fromEl.value = d.from;
+      toEl.value   = d.to;
+    }
+
+    // Reset body to placeholder
+    document.getElementById('report-body').innerHTML = `
+      <div class="placeholder">
+        <div class="placeholder-hex" style="color:var(--sidebar-bg)">⬡</div>
+        <div class="placeholder-line1">Set a date range and click Run</div>
+      </div>`;
+  });
+});
+
+
+
+// ── Run report ────────────────────────────────────────────────────────────────
+async function runReport() {
+  if (!currentReport) return;
+  if (!(await sessionOk())) return;
+
+  const dateFrom = document.getElementById('rpt-from').value;
+  const dateTo   = document.getElementById('rpt-to').value;
+
+  if (!dateFrom || !dateTo) {
+    alert('Please select both a From and To date.');
+    return;
+  }
+  if (dateFrom > dateTo) {
+    alert('From date must not be after To date.');
+    return;
+  }
+
+  // Show spinner
+  const body = document.getElementById('report-body');
+  body.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Running report…</div>';
+
+  try {
+    const res  = await fetch('/api/reports', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ report: currentReport, dateFrom, dateTo }),
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      body.innerHTML = `<div class="report-empty">✕ ${esc(data.error || 'Report failed')}</div>`;
+      return;
+    }
+
+    if (!data.rows || data.rows.length === 0) {
+      body.innerHTML = `<div class="report-empty">No data found for this period.</div>`;
+      return;
+    }
+
+    renderReport(data.rows, data.meta, dateFrom, dateTo);
+
+  } catch (err) {
+    body.innerHTML = `<div class="report-empty">✕ ${esc(err.message)}</div>`;
+  }
+}
+
+// ── Render chart + pivot table ────────────────────────────────────────────────
+function renderReport(rows, meta, dateFrom, dateTo) {
+  const body = document.getElementById('report-body');
+
+  // Destroy old chart instance before replacing the canvas
+  if (reportChart) { reportChart.destroy(); reportChart = null; }
+
+  const labels = rows.map(r => r.label);
+  const values = rows.map(r => r.value);
+  const total  = values.reduce((s, v) => s + v, 0);
+
+  // Assign colours — cycle through palette
+  const colours = labels.map((_, i) => CHART_COLOURS[i % CHART_COLOURS.length]);
+
+  // Staging report shows a line chart (time series); all others use bar chart
+  const isTimeSeries = currentReport === 'Staging';
+
+  body.innerHTML = `
+    <div class="chart-wrap">
+      <canvas id="report-canvas"></canvas>
+    </div>
+    <div class="pivot-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>${currentReport === 'Mixing' ? 'Mix Code' : currentReport === 'Staging' ? 'Month' : 'Material'}</th>
+            <th style="text-align:right">${esc(meta.valueLabel)}</th>
+            <th style="text-align:right">% of Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => {
+            const pct = total > 0 ? ((r.value / total) * 100).toFixed(1) : '—';
+            return `<tr>
+              <td>${esc(r.label)}</td>
+              <td class="num">${formatNum(r.value)}</td>
+              <td class="num">${isTimeSeries ? '—' : pct + '%'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td><strong>${isTimeSeries ? `${dateFrom} → ${dateTo}` : 'Total'}</strong></td>
+            <td class="num"><strong>${isTimeSeries ? (total / rows.length).toFixed(2) + ' avg' : formatNum(total)}</strong></td>
+            <td class="num"><strong>${isTimeSeries ? '' : '100%'}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+
+  // Build Chart.js config
+  const ctx = document.getElementById('report-canvas').getContext('2d');
+
+  const chartCfg = isTimeSeries
+    ? {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label:           meta.valueLabel,
+            data:            values,
+            borderColor:     CHART_COLOURS[0],
+            backgroundColor: 'rgba(37,99,235,0.08)',
+            borderWidth:     2,
+            pointRadius:     4,
+            pointHoverRadius: 6,
+            fill:            true,
+            tension:         0.35,
+          }],
+        },
+      }
+    : {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label:           meta.valueLabel,
+            data:            values,
+            backgroundColor: colours,
+            borderRadius:    4,
+            borderSkipped:   false,
+          }],
+        },
+      };
+
+  reportChart = new Chart(ctx, {
+    ...chartCfg,
+    options: {
+      responsive:          true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${meta.valueLabel}: ${formatNum(ctx.parsed.y)}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: {
+            font:  { family: "'JetBrains Mono', monospace", size: 11 },
+            color: '#4D6380',
+            maxRotation: 35,
+          },
+          grid: { color: '#D0DAE8' },
+        },
+        y: {
+          ticks: {
+            font:  { family: "'JetBrains Mono', monospace", size: 11 },
+            color: '#4D6380',
+            callback: v => formatNum(v),
+          },
+          grid:  { color: '#D0DAE8' },
+          title: {
+            display: true,
+            text:    meta.valueLabel,
+            font:    { family: "'JetBrains Mono', monospace", size: 11 },
+            color:   '#4D6380',
+          },
+        },
+      },
+    },
+  });
+}
+
+// ── Number formatter — commas + up to 2 decimal places ───────────────────────
+function formatNum(n) {
+  if (n == null) return '—';
+  const rounded = Math.round(n * 100) / 100;
+  return rounded.toLocaleString('en-GB', { maximumFractionDigits: 2 });
 }

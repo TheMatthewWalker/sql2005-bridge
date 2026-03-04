@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <title>Kongsberg Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="./css/portal.css">
 </head>
 <body>
@@ -15,7 +16,7 @@
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
-    <div class="brand-icon"><img src="./images/logo32.png" alt="Kongsberg Logo"></div>
+    <div class="brand-icon"><div class="brand-icon"><img src="./images/logo32.png" alt="Kongsberg Logo"></div></div>
     <span class="brand-name">Kongsberg</span>
     <div class="brand-sep"></div>
     <span class="brand-module">Production Intelligence</span>
@@ -25,6 +26,7 @@
       <div class="user-dot"></div>
       <span id="session-user">Connected</span>
     </div>
+    <a href="/private/rawsql.html" class="btn-logout">SQL Console</a>
     <a href="/logout" class="btn-logout">Sign Out</a>
   </div>
 </div>
@@ -41,7 +43,7 @@
 
       <div class="tbl-item" data-table="Batches" data-pk="Drum">
         <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/><line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/></svg>
-        Drumming <span class="tbl-tag">MAIN</span>
+        Batches <span class="tbl-tag">MAIN</span>
       </div>
 
       <div class="tbl-item" data-table="Ewald" data-pk="ID">
@@ -79,6 +81,43 @@
       <div class="tbl-item" data-table="archive" data-pk="BatchID">
         <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/><line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/></svg>
         archive
+      </div>
+
+      <div class="tbl-group-hdr" style="margin-top:4px">Reports</div>
+
+      <div class="tbl-item report-item" data-report="Batches">
+        <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
+        Batches <span class="tbl-tag rpt-tag">RPT</span>
+      </div>
+
+      <div class="tbl-item report-item" data-report="Ewald">
+        <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
+        Ewald <span class="tbl-tag rpt-tag">RPT</span>
+      </div>
+
+      <div class="tbl-item report-item" data-report="Mixing">
+        <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
+        Mixing <span class="tbl-tag rpt-tag">RPT</span>
+      </div>
+
+      <div class="tbl-item report-item" data-report="Extrusion">
+        <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
+        Extrusion <span class="tbl-tag rpt-tag">RPT</span>
+      </div>
+
+      <div class="tbl-item report-item" data-report="Convo">
+        <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
+        Convo <span class="tbl-tag rpt-tag">RPT</span>
+      </div>
+
+      <div class="tbl-item report-item" data-report="Firewall">
+        <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
+        Firewall <span class="tbl-tag rpt-tag">RPT</span>
+      </div>
+
+      <div class="tbl-item report-item" data-report="Staging">
+        <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
+        Staging <span class="tbl-tag rpt-tag">RPT</span>
       </div>
 
     </div>
@@ -127,6 +166,36 @@
       </div>
     </div>
 
+    <!-- Report panel (hidden until a report item is clicked) -->
+    <div class="report-panel" id="report-panel" style="display:none;">
+
+      <!-- Report toolbar -->
+      <div class="report-toolbar">
+        <div>
+          <div class="toolbar-title" id="report-title">—</div>
+          <div class="toolbar-hint"  id="report-hint"></div>
+        </div>
+        <div class="toolbar-spacer"></div>
+
+        <div class="date-range-wrap">
+          <label class="date-label">From</label>
+          <input type="date" id="rpt-from" class="date-input">
+          <label class="date-label">To</label>
+          <input type="date" id="rpt-to"   class="date-input">
+          <button class="btn-filter-search" onclick="runReport()">Run</button>
+        </div>
+      </div>
+
+      <!-- Chart + pivot table -->
+      <div class="report-body" id="report-body">
+        <div class="placeholder">
+          <div class="placeholder-hex"><img src="./images/logo256.png" alt="Kongsberg Logo"></div>
+          <div class="placeholder-line1">Select a date range and click Run</div>
+        </div>
+      </div>
+
+    </div>
+
   </div>
 </div>
 
@@ -165,3 +234,5 @@
 <script src="./js/portal.js"></script>
 </body>
 </html>
+
+    

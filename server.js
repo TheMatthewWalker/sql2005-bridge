@@ -30,6 +30,7 @@ import productionRoutes        from './routes/production.js';
 import relatedRecordsRoutes    from './routes/relatedrecords.js';
 import filterRecordsRoutes     from './routes/filterrecords.js';
 import exportXlsxRoutes        from './routes/exportxlsx.js';
+import reportRoutes            from './routes/reports.js';
 
 
 
@@ -73,6 +74,7 @@ app.use('/api/production', requireLogin,        productionRoutes);
 app.use('/api/related-records', requireLogin,   relatedRecordsRoutes);
 app.use('/api/filter-records', requireLogin,    filterRecordsRoutes);
 app.use('/api/export-xlsx', requireLogin,       exportXlsxRoutes);
+app.use('/api/reports', requireLogin,           reportRoutes);
 
 // Serve static front-end files
 app.use(express.static(path.join(process.cwd(), "public")));
