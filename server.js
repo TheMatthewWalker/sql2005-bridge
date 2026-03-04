@@ -4,7 +4,7 @@ import sql from "mssql";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-import { sapLogon, sapReadTable } from "./sapApi.js";
+import sapRoutes               from "./routes/sap.js";
 import mixingRoutes            from './routes/mixing.js';
 import shipmentMainRoutes      from './routes/shipmentmain.js';
 import destinationsRoutes      from './routes/destinations.js';
@@ -75,6 +75,8 @@ app.use('/api/related-records', requireLogin,   relatedRecordsRoutes);
 app.use('/api/filter-records', requireLogin,    filterRecordsRoutes);
 app.use('/api/export-xlsx', requireLogin,       exportXlsxRoutes);
 app.use('/api/reports', requireLogin,           reportRoutes);
+app.use('/api/sap', requireLogin,               sapRoutes);
+
 
 // Serve static front-end files
 app.use(express.static(path.join(process.cwd(), "public")));
@@ -110,6 +112,18 @@ export const sqlConfig = {
     trustServerCertificate: true
   }
 };
+
+export const sapConfig = {
+  system: config.sapConfig.system,
+  systemNumber: config.sapConfig.systemNumber,
+  client: config.sapConfig.client,
+  user: config.sapConfig.user,
+  password: config.sapConfig.password,
+  lang: config.sapConfig.lang,
+  url: config.sapConfig.url
+};
+
+
 
 // Login middleware
 function requireLogin(req, res, next) {
@@ -247,46 +261,6 @@ app.post("/query-csv", async (req, res) => {
     });
   }
 });
-
-
-
-// -----------------------------
-// SAP API ENDPOINTS
-// -----------------------------
-
-
-// Read SAP table through ASP.NET queue
-app.post("/sap/read-table", requireLogin, async (req, res) => {
-    const { tableName, fields, options, rowCount, delimiter } = req.body;
-
-    if (!tableName) return res.status(400).json({ error: "Missing tableName" });
-    if (!fields || !Array.isArray(fields)) return res.status(400).json({ error: "fields must be an array" });
-
-    const rfcParams = {
-      system: config.sapConfig.system,
-      systemNumber: config.sapConfig.systemNumber,
-      client: config.sapConfig.client,
-      user: config.sapConfig.user,
-      password: config.sapConfig.password,
-      lang: config.sapConfig.lang,
-    };
-
-    try {
-        const result = await sapReadTable(
-            rfcParams,
-            tableName,
-            fields,
-            options || [],
-            rowCount || 1000,
-            delimiter || ";"
-        );
-
-        res.json({ success: true, result });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
- // -----------------------------
 
 
 
