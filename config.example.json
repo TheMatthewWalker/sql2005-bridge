@@ -1,9 +1,29 @@
 {
-  "apiKey": "apiGoesHere",
+  "apiKey": "api-goes-here",
+  
   "users": [
-    { "username": "u1", "password": "password!", "sapUser": "SAPUSER1", "sapPassword": "", "isAdmin": true },
-    { "username": "u2", "password": "password", "sapUser": "SAPUSER2", "sapPassword": "", "isAdmin": false },
-    { "username": "u3", "password": "password", "sapUser": "SAPUSER3", "sapPassword": "", "isAdmin": false },
-    { "username": "u4", "password": "password", "sapUser": "SAPUSER4", "sapPassword": "", "isAdmin": false }
-  ]
+    { "username": "user1", "password": "", "isAdmin": true },
+    { "username": "user2", "password": "", "isAdmin": false },
+    { "username": "user3", "password": "", "isAdmin": false }
+
+  ],
+  "sqlConfig": {
+    "user": "helpdesk",
+    "password": "password",
+    "server": "GATEWAYHO",
+    "database": "kongsberg"
+  },
+
+  "session": {
+    "secret": "secret-here"
+  },
+
+  "sapConfig": {
+    "system": "SAP",
+    "systemNumber": "00",
+    "client": "000",
+    "user": "USER",
+    "password": "PASS",
+    "lang": "EN"
+  }
 }
