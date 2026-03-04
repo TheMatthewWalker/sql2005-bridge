@@ -43,7 +43,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-  secret: "kongsberg-gbno-bridge",
+  secret: config.session.secret,
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 1000 * 60 * 60 }
@@ -100,11 +100,6 @@ app.get('/private/css/:file', requireLogin, (req, res) => {
   res.sendFile(filePath);
 });
 
-app.get('/private/assets/:file', (req, res) => {
-  const filePath = path.join(__dirname, 'private', 'assets', req.params.file);
-  res.sendFile(filePath);
-});
-
 export const sqlConfig = {
   user: config.sqlConfig.user,
   password: config.sqlConfig.password,
@@ -149,7 +144,7 @@ app.post("/login", (req, res) => {
 
   if (user) {
     req.session.user = { username: user.username };
-    res.redirect("/private/portal.html");
+    res.redirect("/private/landing.html");
   } else {
     res.redirect("/");
     res.status(500).send("Invalid username or password");
@@ -163,7 +158,7 @@ app.get("/logout", (req, res) => {
   });
 });
 
-// ✅ Query API (still requires API key)
+// ✅ Query API (Require Login / No API key)
 app.post("/query", requireLogin, async (req, res) => {
   const { query } = req.body;
   if (!query) return res.status(400).json({ error: "Missing query" });
@@ -254,59 +249,10 @@ app.post("/query-csv", async (req, res) => {
 });
 
 
-// ✅ Prep data to post to ASP.NET function (just a test endpoint)
-app.post("/rfc", requireLogin, async (req, res) => {
-  try {
-    const sessionUser = req.session.user?.username;
-    if (!sessionUser) return res.status(401).json({ success: false, error: "Not logged in" });
-
-    const sapCreds = getSapCredentials(sessionUser);
-    if (!sapCreds || !sapCreds.User || !sapCreds.Passwd) {
-      return res.json({ success: false, error: "SAP credentials not set for this user" });
-    }
-
-    const rfcParams = {
-      System: "KAP",
-      SystemNumber: "01",
-      Client: "100",
-      User: sapCreds.User,
-      Passwd: sapCreds.Passwd,
-      Lang: "EN",
-    };
-
-    // Call your existing SAP COM logic here
-    const result = await callSapRfcRetries(rfcParams, "rfc");
-
-    res.json(result);
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
-});
 
 // -----------------------------
 // SAP API ENDPOINTS
 // -----------------------------
-
-// Logon to SAP using the ASP.NET queue
-app.post("/sap/logon", requireLogin, async (req, res) => {
-    try {
-        const user = req.session.user.username;
-        const creds = getSapCredentials(user);
-
-        if (!creds) {
-            return res.status(401).json({ error: "SAP credentials not configured for this user" });
-        }
-
-        const result = await sapLogon(
-            creds.User,
-            creds.Passwd
-        );
-
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
 
 
 // Read SAP table through ASP.NET queue
@@ -316,8 +262,18 @@ app.post("/sap/read-table", requireLogin, async (req, res) => {
     if (!tableName) return res.status(400).json({ error: "Missing tableName" });
     if (!fields || !Array.isArray(fields)) return res.status(400).json({ error: "fields must be an array" });
 
+    const rfcParams = {
+      system: config.sapConfig.system,
+      systemNumber: config.sapConfig.systemNumber,
+      client: config.sapConfig.client,
+      user: config.sapConfig.user,
+      password: config.sapConfig.password,
+      lang: config.sapConfig.lang,
+    };
+
     try {
         const result = await sapReadTable(
+            rfcParams,
             tableName,
             fields,
             options || [],

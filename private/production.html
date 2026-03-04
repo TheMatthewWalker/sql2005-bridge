@@ -4,32 +4,46 @@
   <meta charset="UTF-8">
   <title>Kongsberg Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./css/portal.css">
+  <link rel="stylesheet" href="./css/production.css">
 </head>
 <body>
 
-<!-- HEADER -->
-<div class="header">
-  <div class="header-left">
-    <div class="brand-icon"><div class="brand-icon"><img src="./images/logo32.png" alt="Kongsberg Logo"></div></div>
-    <span class="brand-name">Kongsberg</span>
-    <div class="brand-sep"></div>
-    <span class="brand-module">Production Intelligence</span>
-  </div>
-  <div class="header-right">
-    <div class="user-badge">
-      <div class="user-dot"></div>
-      <span id="session-user">Connected</span>
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="brand-icon"><img src="./images/logo32.png" alt="Kongsberg Logo"></div>
+      <a href="./landing.html" class="back-link">← Hub</a>
+      <div class="brand-sep"></div>
+      <div class="dept-badge">
+        <svg viewBox="0 0 28 28" fill="none">
+          <rect x="2" y="10" width="6" height="16" rx="1" stroke="currentColor" stroke-width="1.8"/>
+          <rect x="11" y="6"  width="6" height="20" rx="1" stroke="currentColor" stroke-width="1.8"/>
+          <rect x="20" y="2"  width="6" height="24" rx="1" stroke="currentColor" stroke-width="1.8"/>
+      </div>
+      <span class="brand-name">Production</span>
     </div>
-    <a href="/private/rawsql.html" class="btn-logout">SQL Console</a>
-    <a href="/logout" class="btn-logout">Sign Out</a>
+    <div class="header-right">
+      <div class="user-badge">
+        <div class="user-dot"></div>
+        <span>Connected</span>
+      </div>
+      <a href="/logout" class="btn-logout">Sign Out</a>
+    </div>
+  </header>
+
+  <!-- PAGE TITLE BAR -->
+  <div class="page-title-bar">
+    <div class="page-title-inner">
+      <h1 class="page-title">Logistics</h1>
+      <p class="page-subtitle">Shipments, routes &amp; carrier management</p>
+    </div>
   </div>
-</div>
+
 
 <!-- APP BODY -->
 <div class="app-body">
@@ -231,8 +245,6 @@
   </div>
 </div>
 
-<script src="./js/portal.js"></script>
+<script src="./js/production.js"></script>
 </body>
 </html>
-
-    

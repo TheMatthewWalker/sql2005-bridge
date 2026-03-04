@@ -522,7 +522,7 @@ document.querySelectorAll('.report-item').forEach(item => {
     // Reset body to placeholder
     document.getElementById('report-body').innerHTML = `
       <div class="placeholder">
-        <div class="placeholder-hex" style="color:var(--sidebar-bg)">⬡</div>
+        <div class="placeholder-hex" style="color:var(--sidebar-bg)"><img src="./images/logo256.png" alt="Kongsberg Logo"></div>
         <div class="placeholder-line1">Set a date range and click Run</div>
       </div>`;
   });

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Kongsberg // Portal Hub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/landing.css">
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="brand-icon"><img src="./images/logo32.png" alt="Kongsberg Logo"></div>
+      <span class="brand-name">Kongsberg</span>
+      <div class="brand-sep"></div>
+      <span class="brand-module">Enterprise Portal</span>
+    </div>
+    <div class="header-right">
+      <div class="user-badge">
+        <div class="user-dot"></div>
+        <span id="session-user">Connected</span>
+      </div>
+      <a href="/logout" class="btn-logout">Sign Out</a>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-eyebrow">Select your area</div>
+      <h1 class="hero-title">Kongsberg Portal</h1>
+      <p class="hero-sub">Choose a department below to access its tools, data, and reports.</p>
+    </div>
+  </section>
+
+  <!-- DEPARTMENT GRID -->
+  <main class="grid-wrap">
+    <div class="dept-grid">
+
+      <a href="./logistics.html" class="dept-card" style="--delay:0.05s">
+        <div class="dept-icon">
+          <!-- Truck / route icon -->
+          <svg viewBox="0 0 28 28" fill="none">
+            <rect x="1" y="8" width="17" height="13" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M18 11h5.5l3 5v5H18V11Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <circle cx="7"  cy="22" r="2.2" stroke="currentColor" stroke-width="1.6"/>
+            <circle cx="22" cy="22" r="2.2" stroke="currentColor" stroke-width="1.6"/>
+          </svg>
+        </div>
+        <div class="dept-info">
+          <div class="dept-name">Logistics</div>
+          <div class="dept-desc">Shipments, routes &amp; carrier management</div>
+        </div>
+        <div class="dept-arrow">→</div>
+      </a>
+
+      <a href="./warehouse.html" class="dept-card" style="--delay:0.10s">
+        <div class="dept-icon">
+          <!-- Warehouse / shelving icon -->
+          <svg viewBox="0 0 28 28" fill="none">
+            <path d="M2 12L14 4l12 8v14H2V12Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <rect x="10" y="16" width="8" height="10" rx="1" stroke="currentColor" stroke-width="1.6"/>
+            <line x1="6" y1="14" x2="6"  y2="20" stroke="currentColor" stroke-width="1.6"/>
+            <line x1="22" y1="14" x2="22" y2="20" stroke="currentColor" stroke-width="1.6"/>
+          </svg>
+        </div>
+        <div class="dept-info">
+          <div class="dept-name">Warehouse</div>
+          <div class="dept-desc">Stock, inventory &amp; bin locations</div>
+        </div>
+        <div class="dept-arrow">→</div>
+      </a>
+
+      <a href="./finance.html" class="dept-card" style="--delay:0.15s">
+        <div class="dept-icon">
+          <!-- Chart / finance icon -->
+          <svg viewBox="0 0 28 28" fill="none">
+            <polyline points="2,22 9,14 15,18 26,7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="2" y1="26" x2="26" y2="26" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="dept-info">
+          <div class="dept-name">Finance</div>
+          <div class="dept-desc">Costs, budgets &amp; financial reporting</div>
+        </div>
+        <div class="dept-arrow">→</div>
+      </a>
+
+      <a href="./sales.html" class="dept-card" style="--delay:0.20s">
+        <div class="dept-icon">
+          <!-- Target / sales icon -->
+          <svg viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="11" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="14" cy="14" r="6"  stroke="currentColor" stroke-width="1.6"/>
+            <circle cx="14" cy="14" r="2"  fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="dept-info">
+          <div class="dept-name">Sales</div>
+          <div class="dept-desc">Orders, customers &amp; pipeline</div>
+        </div>
+        <div class="dept-arrow">→</div>
+      </a>
+
+      <a href="./quality.html" class="dept-card" style="--delay:0.25s">
+        <div class="dept-icon">
+          <!-- Shield / tick icon -->
+          <svg viewBox="0 0 28 28" fill="none">
+            <path d="M14 2L4 6v9c0 5.5 4.3 10.4 10 12 5.7-1.6 10-6.5 10-12V6L14 2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <polyline points="9,14 12.5,17.5 19,11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="dept-info">
+          <div class="dept-name">Quality</div>
+          <div class="dept-desc">Inspection, compliance &amp; defect tracking</div>
+        </div>
+        <div class="dept-arrow">→</div>
+      </a>
+
+      <a href="./engineering.html" class="dept-card" style="--delay:0.30s">
+        <div class="dept-icon">
+          <!-- Cog icon -->
+          <svg viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="4" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 2v3M14 23v3M2 14h3M23 14h3M5.5 5.5l2.1 2.1M20.4 20.4l2.1 2.1M5.5 22.5l2.1-2.1M20.4 7.6l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="dept-info">
+          <div class="dept-name">Engineering</div>
+          <div class="dept-desc">Specs, drawings &amp; process control</div>
+        </div>
+        <div class="dept-arrow">→</div>
+      </a>
+
+      <a href="./management.html" class="dept-card" style="--delay:0.35s">
+        <div class="dept-icon">
+          <!-- Dashboard / management icon -->
+          <svg viewBox="0 0 28 28" fill="none">
+            <rect x="2"  y="2"  width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="16" y="2"  width="10" height="7"  rx="1.5" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="2"  y="18" width="10" height="8"  rx="1.5" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="16" y="13" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </div>
+        <div class="dept-info">
+          <div class="dept-name">Management</div>
+          <div class="dept-desc">KPIs, overviews &amp; cross-department insight</div>
+        </div>
+        <div class="dept-arrow">→</div>
+      </a>
+
+      <!-- Production — links back to existing portal -->
+      <a href="./production.html" class="dept-card dept-card--production" style="--delay:0.40s">
+        <div class="dept-icon">
+          <svg viewBox="0 0 28 28" fill="none">
+            <rect x="2" y="10" width="6" height="16" rx="1" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="11" y="6"  width="6" height="20" rx="1" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="20" y="2"  width="6" height="24" rx="1" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </div>
+        <div class="dept-info">
+          <div class="dept-name">Production</div>
+          <div class="dept-desc">Batches, mixing, extrusion &amp; staging</div>
+        </div>
+        <div class="dept-arrow">→</div>
+      </a>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    Kongsberg Enterprise Portal &nbsp;·&nbsp; Authorised access only &nbsp;·&nbsp; Session expires after 60 min
+  </footer>
+
+</body>
+</html>

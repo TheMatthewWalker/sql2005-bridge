@@ -1,0 +1,288 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   landing.css  —  Kongsberg Portal  —  Department hub
+   Theme: Slate Steel (Option B)
+   Fonts: Manrope (headings/brand), JetBrains Mono (mono)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --bg:         #EEF2F7;
+  --surface:    #FFFFFF;
+  --surface2:   #F4F7FB;
+  --border:     #D0DAE8;
+  --border2:    #B8C8DC;
+  --accent:     #2563EB;
+  --accent2:    #1D4ED8;
+  --accent3:    #3B82F6;
+  --accent-dim: #DBEAFE;
+  --sidebar-bg: #1E2D45;
+  --text:       #1E2D3D;
+  --text-dim:   #4D6380;
+  --text-muted: #8DA3BE;
+  --success:    #059669;
+  --error:      #DC2626;
+  --muted:      #B8C8DC;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Manrope', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Dot-grid background */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: radial-gradient(circle, rgba(37,99,235,0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── HEADER ──────────────────────────────────────────────────────────────── */
+.header {
+  position: relative; z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  height: 52px;
+  padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(30,45,69,0.08);
+  flex-shrink: 0;
+}
+
+.header-left { display: flex; align-items: center; gap: 12px; }
+
+.brand-icon {
+  width: 32px; height: 32px;
+}
+
+.brand-name {
+  font-family: 'Manrope', sans-serif;
+  font-size: 17px; font-weight: 800;
+  color: var(--text); letter-spacing: 0.5px;
+}
+
+.brand-sep { width: 1px; height: 16px; background: var(--border); }
+
+.brand-module {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-muted); letter-spacing: 1px;
+}
+
+.header-right { display: flex; align-items: center; gap: 16px; }
+
+.user-badge {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text-dim);
+}
+
+.user-dot {
+  width: 7px; height: 7px;
+  background: var(--success); border-radius: 50%;
+  box-shadow: 0 0 5px rgba(5,150,105,0.6);
+}
+
+.btn-logout {
+  font-family: 'Manrope', sans-serif;
+  font-size: 12px; font-weight: 500;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border2); border-radius: 6px;
+  color: var(--text-dim); cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-logout:hover { border-color: var(--error); color: var(--error); }
+
+/* ── HERO ────────────────────────────────────────────────────────────────── */
+.hero {
+  position: relative; z-index: 1;
+  background: var(--sidebar-bg);
+  padding: 52px 32px 48px;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* Subtle diagonal stripe texture */
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 24px,
+    rgba(255,255,255,0.015) 24px,
+    rgba(255,255,255,0.015) 25px
+  );
+  pointer-events: none;
+}
+
+/* Blue glow orb */
+.hero::after {
+  content: '';
+  position: absolute;
+  top: -60px; left: 50%;
+  transform: translateX(-50%);
+  width: 600px; height: 300px;
+  background: radial-gradient(ellipse, rgba(37,99,235,0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-inner { position: relative; z-index: 1; }
+
+.hero-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  color: var(--accent3);
+  letter-spacing: 3px; text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.hero-title {
+  font-size: 38px; font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+}
+
+.hero-sub {
+  font-size: 14px; font-weight: 400;
+  color: rgba(148,168,194,0.85);
+  max-width: 420px; margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ── GRID ────────────────────────────────────────────────────────────────── */
+.grid-wrap {
+  position: relative; z-index: 1;
+  flex: 1;
+  padding: 40px 32px;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.dept-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+/* ── DEPARTMENT CARD ─────────────────────────────────────────────────────── */
+.dept-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(30,45,69,0.07);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  animation: cardIn 0.4s ease both;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Left accent bar — appears on hover */
+.dept-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--accent2), var(--accent3));
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.2s ease;
+  border-radius: 0 2px 2px 0;
+}
+
+.dept-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(30,45,69,0.13);
+  border-color: var(--border2);
+}
+
+.dept-card:hover::before { transform: scaleY(1); }
+
+/* Production card — slightly distinguished as the existing live portal */
+.dept-card--production {
+  border-color: rgba(37,99,235,0.3);
+  background: linear-gradient(135deg, var(--surface) 70%, var(--accent-dim));
+}
+.dept-card--production::before {
+  background: linear-gradient(180deg, var(--accent), var(--accent3));
+}
+
+/* Icon wrapper */
+.dept-icon {
+  width: 48px; height: 48px; flex-shrink: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  transition: background 0.18s, color 0.18s;
+}
+.dept-icon svg { width: 22px; height: 22px; }
+.dept-card:hover .dept-icon {
+  background: var(--accent-dim);
+  color: var(--accent2);
+}
+
+/* Text block */
+.dept-info { flex: 1; min-width: 0; }
+
+.dept-name {
+  font-size: 16px; font-weight: 700;
+  color: var(--text);
+  margin-bottom: 3px;
+  letter-spacing: 0.1px;
+}
+
+.dept-desc {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Arrow */
+.dept-arrow {
+  font-size: 18px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.18s, color 0.18s;
+}
+.dept-card:hover .dept-arrow {
+  transform: translateX(4px);
+  color: var(--accent);
+}
+
+/* ── FOOTER ──────────────────────────────────────────────────────────────── */
+.footer {
+  position: relative; z-index: 1;
+  text-align: center;
+  padding: 20px 32px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-muted);
+  letter-spacing: 0.5px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}

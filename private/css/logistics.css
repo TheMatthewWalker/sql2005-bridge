@@ -1,0 +1,216 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   logistics.css  —  Kongsberg Portal  —  Logistics department
+   Theme: Slate Steel (Option B)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --bg:         #EEF2F7;
+  --surface:    #FFFFFF;
+  --surface2:   #F4F7FB;
+  --border:     #D0DAE8;
+  --border2:    #B8C8DC;
+  --accent:     #0891B2;
+  --accent2:    #0E7490;
+  --accent-dim: rgba(8,145,178,0.08);
+  --sidebar-bg: #1E2D45;
+  --text:       #1E2D3D;
+  --text-dim:   #4D6380;
+  --text-muted: #8DA3BE;
+  --success:    #059669;
+  --error:      #DC2626;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Manrope', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: radial-gradient(circle, rgba(8,145,178,0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none; z-index: 0;
+}
+
+/* ── HEADER ──────────────────────────────────────────────────────────────── */
+.header {
+  position: relative; z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  height: 52px; padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(30,45,69,0.08);
+  flex-shrink: 0;
+}
+
+.brand-icon {
+  width: 32px; height: 32px;
+}
+
+.header-left { display: flex; align-items: center; gap: 12px; }
+
+.back-link {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text-muted);
+  text-decoration: none; letter-spacing: 0.5px;
+  transition: color 0.15s;
+}
+.back-link:hover { color: var(--accent); }
+
+.brand-sep { width: 1px; height: 16px; background: var(--border); }
+
+.dept-badge {
+  width: 28px; height: 28px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(8,145,178,0.3);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent); flex-shrink: 0;
+}
+.dept-badge svg { width: 16px; height: 16px; }
+
+.brand-name {
+  font-size: 16px; font-weight: 800; color: var(--text);
+}
+
+.header-right { display: flex; align-items: center; gap: 16px; }
+
+.user-badge {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text-dim);
+}
+
+.user-dot {
+  width: 7px; height: 7px;
+  background: var(--success); border-radius: 50%;
+  box-shadow: 0 0 5px rgba(5,150,105,0.6);
+}
+
+.btn-logout {
+  font-family: 'Manrope', sans-serif;
+  font-size: 12px; font-weight: 500;
+  padding: 6px 14px; background: transparent;
+  border: 1px solid var(--border2); border-radius: 6px;
+  color: var(--text-dim); text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-logout:hover { border-color: var(--error); color: var(--error); }
+
+/* ── PAGE TITLE BAR ──────────────────────────────────────────────────────── */
+.page-title-bar {
+  position: relative; z-index: 1;
+  background: var(--sidebar-bg);
+  padding: 32px 32px 30px;
+  overflow: hidden;
+}
+
+.page-title-bar::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    -45deg, transparent, transparent 24px,
+    rgba(255,255,255,0.015) 24px, rgba(255,255,255,0.015) 25px
+  );
+  pointer-events: none;
+}
+
+.page-title-bar::after {
+  content: '';
+  position: absolute; top: -40px; left: -40px;
+  width: 300px; height: 200px;
+  background: radial-gradient(ellipse, rgba(8,145,178,0.2) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.page-title-inner { position: relative; z-index: 1; }
+
+.page-title {
+  font-size: 28px; font-weight: 800;
+  color: #FFFFFF; letter-spacing: -0.3px;
+  margin-bottom: 6px;
+}
+
+.page-subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: rgba(148,168,194,0.8);
+  letter-spacing: 0.5px;
+}
+
+/* ── MAIN CONTENT ────────────────────────────────────────────────────────── */
+.main-content {
+  position: relative; z-index: 1;
+  flex: 1;
+  padding: 40px 32px;
+  max-width: 1100px; width: 100%; margin: 0 auto;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── PLACEHOLDER PANEL ───────────────────────────────────────────────────── */
+.placeholder-panel {
+  text-align: center;
+  padding: 60px 40px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(30,45,69,0.08);
+  max-width: 480px; width: 100%;
+  animation: fadeUp 0.4s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.placeholder-icon {
+  width: 64px; height: 64px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(8,145,178,0.3);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  margin: 0 auto 24px;
+}
+.placeholder-icon svg { width: 32px; height: 32px; }
+
+.placeholder-title {
+  font-size: 20px; font-weight: 700;
+  color: var(--text); margin-bottom: 12px;
+}
+
+.placeholder-body {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; color: var(--text-muted);
+  line-height: 1.7; margin-bottom: 28px;
+}
+
+.btn-back {
+  display: inline-block;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px; font-weight: 600;
+  padding: 10px 24px;
+  background: var(--accent);
+  border: none; border-radius: 7px;
+  color: #fff; text-decoration: none;
+  transition: background 0.15s;
+}
+.btn-back:hover { background: var(--accent2); }
+
+/* ── FOOTER ──────────────────────────────────────────────────────────────── */
+.footer {
+  position: relative; z-index: 1;
+  text-align: center;
+  padding: 18px 32px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
