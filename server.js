@@ -4,7 +4,9 @@ import sql from "mssql";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-import sapRoutes               from "./routes/sap.js";
+import bcrypt                 from 'bcrypt';
+import rateLimit              from 'express-rate-limit';
+
 import mixingRoutes            from './routes/mixing.js';
 import shipmentMainRoutes      from './routes/shipmentmain.js';
 import destinationsRoutes      from './routes/destinations.js';
@@ -31,6 +33,11 @@ import relatedRecordsRoutes    from './routes/relatedrecords.js';
 import filterRecordsRoutes     from './routes/filterrecords.js';
 import exportXlsxRoutes        from './routes/exportxlsx.js';
 import reportRoutes            from './routes/reports.js';
+import sapRoutes               from "./routes/sap.js";
+
+import authRoutes              from './routes/auth.js';
+import adminRoutes             from './routes/useradmin.js';
+import { requireLogin, requireRole, requireDepartment } from './middleware/auth.js';
 
 
 
@@ -43,12 +50,25 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-  secret: config.session.secret,
+  secret: config.sessionSecret,
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 }
+  rolling: true,                          // reset expiry on each request
+  cookie: {
+    maxAge:   1000 * 60 * 60,            // 1 hour idle timeout
+    httpOnly: true,                       // JS cannot read cookie
+    sameSite: 'strict',                   // CSRF protection
+    // secure: true,                      // uncomment when running HTTPS
+  }
 }));
 
+// ── Auth routes (public — no requireLogin) ───────────────────────────────────
+app.use('/', authRoutes);
+
+// ── Admin routes (requires admin role minimum) ────────────────────────────────
+app.use('/api/admin', requireLogin, requireRole('admin'), adminRoutes);
+
+// ── API routes (require login) ───────────────────────────────────────────────
 app.use('/api/mixing', requireLogin,            mixingRoutes);
 app.use('/api/shipmentmain', requireLogin,      shipmentMainRoutes);
 app.use('/api/destinations', requireLogin,      destinationsRoutes);
@@ -81,15 +101,40 @@ app.use('/api/sap', requireLogin,               sapRoutes);
 // Serve static front-end files
 app.use(express.static(path.join(process.cwd(), "public")));
 
-// Serve protected pages
-app.get('/private/:page', requireLogin, (req, res) => {
-  const filePath = path.join(__dirname, 'private', `${req.params.page}`);
-  res.sendFile(filePath);
-});
 
-app.get('/private/images/:image', requireLogin, (req, res) => {
-  const filePath = path.join(__dirname, 'private', 'images', req.params.image);
-  res.sendFile(filePath);
+// ── Department page map — which HTML page requires which department ────────────
+const DEPT_PAGE_MAP = {
+  'production.html':  'production',
+  'logistics.html':   'logistics',
+  'warehouse.html':   'warehouse',
+  'finance.html':     'finance',
+  'sales.html':       'sales',
+  'quality.html':     'quality',
+  'engineering.html': 'engineering',
+  'management.html':  'management',
+};
+
+// Serve protected pages
+app.get('/private/:page', requireLogin, (req, res, next) => {
+  const page = req.params.page;
+  const dept = DEPT_PAGE_MAP[page];
+
+  // If it maps to a department, check access (superadmin bypasses this in middleware)
+  if (dept) {
+    return requireDepartment(dept)(req, res, () => {
+      res.sendFile(path.join(__dirname, 'private', page));
+    });
+  }
+
+  // admin.html — requires admin role minimum
+  if (page === 'admin.html') {
+    return requireRole('admin')(req, res, () => {
+      res.sendFile(path.join(__dirname, 'private', page));
+    });
+  }
+
+  // landing.html and other pages — just requireLogin (already checked)
+  res.sendFile(path.join(__dirname, 'private', page));
 });
 
 app.get('/private/js/:file', requireLogin, (req, res) => {
@@ -101,6 +146,7 @@ app.get('/private/css/:file', requireLogin, (req, res) => {
   const filePath = path.join(__dirname, 'private', 'css', req.params.file);
   res.sendFile(filePath);
 });
+
 
 export const sqlConfig = {
   user: config.sqlConfig.user,
@@ -123,26 +169,18 @@ export const sapConfig = {
   url: config.sapConfig.url
 };
 
+// Role check helper — reads role from session (replaces config-based isAdmin)
+function isAdmin(username) {
+  // For backward compat with /query endpoint — check session role directly
+  return req => req.session?.user?.role === 'admin' || req.session?.user?.role === 'superadmin';
+}
 
+/* session-check, /login, and /logout are now handled by routes/auth.js
 
 // Login middleware
-function requireLogin(req, res, next) {
+export function requireLogin(req, res, next) {
   if (req.session && req.session.user) return next();
   res.redirect("/");
-}
-
-// Helper to get SAP credentials from config
-function getSapCredentials(username) {
-  const user = config.users.find(u => u.username === username);
-  if (!user) return null;
-  return { User: user.sapUser, Passwd: user.sapPassword };
-}
-
-// Helper to check for admins
-function isAdmin(username) {
-  const user = config.users.find(u => u.username === username);
-  if (!user) return null;
-  return user.isAdmin;
 }
 
 // Session check endpoint
@@ -157,7 +195,7 @@ app.post("/login", (req, res) => {
   const user = config.users.find(u => u.username === username && u.password === password);
 
   if (user) {
-    req.session.user = { username: user.username };
+    req.session.user = { username: user.username, isAdmin: user.isAdmin};
     res.redirect("/private/landing.html");
   } else {
     res.redirect("/");
@@ -172,7 +210,18 @@ app.get("/logout", (req, res) => {
   });
 });
 
-// ✅ Query API (Require Login / No API key)
+// Endpoint to check if user is admin (for raw SQL access)
+app.get("/rawsql", (req, res) => {
+  if (req.session.user && req.session.user.isAdmin) {
+    res.redirect("/private/rawsql.html");
+  } else {
+    res.status(403).send("Access denied");
+  }
+});
+
+*/
+
+// ✅ Query API (still requires API key)
 app.post("/query", requireLogin, async (req, res) => {
   const { query } = req.body;
   if (!query) return res.status(400).json({ error: "Missing query" });
@@ -181,9 +230,10 @@ app.post("/query", requireLogin, async (req, res) => {
   const normalized = query.trim().toUpperCase();
 
   // Allow Admin to by-pass the block.
-  var serverAdmin = isAdmin(req.session.user.username);
+  const userRole = req.session?.user?.role;
+  const serverAdmin = userRole === 'admin' || userRole === 'superadmin';
 
-  if (serverAdmin !== true) {
+  if (!serverAdmin) {
     // 🚫 Block any dangerous keywords even if embedded later
     const forbidden = ["DELETE", "DROP", "UPDATE", "INSERT", "ALTER", "TRUNCATE", "EXEC", "MERGE"];
     if (forbidden.some(word => normalized.includes(word))) {
@@ -205,7 +255,6 @@ app.post("/query", requireLogin, async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
 
 // ✅ POST version for Excel or tools sending long queries
 app.post("/query-csv", async (req, res) => {
@@ -261,8 +310,6 @@ app.post("/query-csv", async (req, res) => {
     });
   }
 });
-
-
 
 app.listen(4000, "0.0.0.0", () => console.log("✅ SQL2005 Bridge accessible on network port 4000"));
 

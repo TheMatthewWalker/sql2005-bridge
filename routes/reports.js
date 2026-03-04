@@ -147,16 +147,33 @@ const REPORTS = {
     title:      'Failed Percentage per Material',
     valueLabel: 'Failed Percentage',
     sql: `
-      SELECT label, failed, total, failed * 100.0 / total AS value FROM (
-      SELECT
-        f.Material          AS label,
-        SUM(f.FailedQty)    AS failed,
-        SUM(e.Pieces)     AS total
-      FROM dbo.Firewall f
-      JOIN dbo.EwaldBoxes e 
-      ON f.SAPBatch = e.SAPBatch
-      GROUP BY f.Material ) as subquery
-      ORDER BY value DESC
+      SELECT 
+        a.Material as Label, 
+        a.sapbatch as Batch, 
+        a.reasoncode as Reason,
+        MAX(d.total) / COUNT(a.sapbatch) as Total,
+        SUM(a.failedqty) as Failed,
+        MAX(e.CreationIso) as Date
+      FROM dbo.firewall a
+      JOIN 
+        ( SELECT 
+            b.sapbatch as sap, 
+            MAX(b.pieces) as total, 
+            c.creationdate as qdate 
+          FROM dbo.ewaldboxes b 
+          JOIN dbo.ewald c 
+            ON b.ewaldid = c.id 
+          GROUP BY b.sapbatch, c.creationdate
+        ) As d
+      ON a.sapbatch = d.sap
+      CROSS APPLY (
+        SELECT
+          SUBSTRING(d.qdate, 7, 4) + '-' + SUBSTRING(d.qdate, 4, 2) + '-' + SUBSTRING(d.qdate, 1, 2) AS CreationIso
+      ) e
+      WHERE ISDATE(e.CreationIso) = 1
+        AND e.CreationIso >= @dateFrom
+        AND e.CreationIso <= @dateTo
+      GROUP BY a.Material, a.sapbatch, a.reasoncode
     `
   },
 

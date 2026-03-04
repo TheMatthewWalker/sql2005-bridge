@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Kongsberg // User Administration</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/admin.css">
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="brand-icon"><img src="./images/logo32.png" alt="Kongsberg Logo"></div>
+      <a href="./landing.html" class="back-link">← Hub</a>
+      <div class="brand-sep"></div>
+      <div class="dept-badge">
+        <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M14 2v3M14 23v3M2 14h3M23 14h3M5.5 5.5l2.1 2.1M20.4 20.4l2.1 2.1M5.5 22.5l2.1-2.1M20.4 7.6l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </div>
+      <span class="brand-name">User Administration</span>
+    </div>
+    <div class="header-right">
+      <div class="user-badge">
+        <div class="user-dot"></div>
+        <span>Connected</span>
+      </div>
+      <a href="/logout" class="btn-logout">Sign Out</a>
+    </div>
+  </header>
+
+  <!-- APP BODY -->
+  <div class="app-body">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">Admin Sections</div>
+      <div class="sidebar-scroll">
+
+        <div class="nav-item active" data-section="pending">
+          <svg class="nav-icon" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/>
+            <line x1="7" y1="4" x2="7" y2="7.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            <circle cx="7" cy="9.5" r=".7" fill="currentColor"/>
+          </svg>
+          Pending Approvals
+          <span class="nav-badge" id="pending-count">…</span>
+        </div>
+
+        <div class="nav-item" data-section="users">
+          <svg class="nav-icon" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M1.5 12.5c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          All Users
+          <span class="nav-badge" id="users-count">…</span>
+        </div>
+
+        <div class="nav-item" data-section="audit">
+          <svg class="nav-icon" viewBox="0 0 14 14" fill="none">
+            <rect x="1.5" y="1.5" width="11" height="11" rx="1" stroke="currentColor" stroke-width="1.2"/>
+            <line x1="4" y1="5" x2="10" y2="5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+            <line x1="4" y1="7.5" x2="10" y2="7.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+            <line x1="4" y1="10" x2="7" y2="10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+          </svg>
+          Audit Log
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+
+      <!-- ── PENDING APPROVALS ───────────────────────────────────────────── -->
+      <section class="section active" id="section-pending">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Pending Approvals</div>
+            <div class="section-sub">Review and approve new registration requests</div>
+          </div>
+        </div>
+        <div class="card-list" id="pending-list">
+          <div class="loading-wrap"><div class="spinner"></div>Loading…</div>
+        </div>
+      </section>
+
+      <!-- ── ALL USERS ──────────────────────────────────────────────────── -->
+      <section class="section" id="section-users">
+        <div class="section-header">
+          <div>
+            <div class="section-title">All Users</div>
+            <div class="section-sub">Manage roles, departments and account status</div>
+          </div>
+          <div class="section-actions">
+            <input type="text" id="user-search" class="search-input" placeholder="Search username or email…">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="users-table">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Last Login</th>
+                <th>Departments</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="7" class="loading-cell"><div class="spinner"></div> Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── AUDIT LOG ──────────────────────────────────────────────────── -->
+      <section class="section" id="section-audit">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Audit Log</div>
+            <div class="section-sub">All login attempts and administrative actions</div>
+          </div>
+          <div class="section-actions">
+            <select id="audit-filter" class="filter-select">
+              <option value="">All events</option>
+              <option value="LOGIN_OK">Successful logins</option>
+              <option value="LOGIN_FAIL">Failed logins</option>
+              <option value="LOGOUT">Logouts</option>
+              <option value="REGISTER">Registrations</option>
+              <option value="APPROVED">Approvals</option>
+              <option value="ROLE_CHANGE">Role changes</option>
+              <option value="DEPT_CHANGE">Dept changes</option>
+              <option value="LOCKED">Account locks</option>
+            </select>
+            <button class="btn-secondary" onclick="loadAudit()">Refresh</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="audit-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Username</th>
+                <th>Event</th>
+                <th>Detail</th>
+                <th>IP Address</th>
+              </tr>
+            </thead>
+            <tbody id="audit-tbody">
+              <tr><td colspan="5" class="loading-cell"><div class="spinner"></div> Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ── EDIT USER MODAL ────────────────────────────────────────────────── -->
+  <div id="edit-overlay" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Edit User — <span id="edit-username">—</span></div>
+        <button class="modal-close" onclick="closeEditModal()">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <div class="modal-row">
+          <label class="modal-label">Role</label>
+          <select id="edit-role" class="modal-select">
+            <option value="viewer">Viewer — read only</option>
+            <option value="editor">Editor — can export &amp; filter</option>
+            <option value="admin">Admin — dept admin + user approval</option>
+            <option value="superadmin">Superadmin — full access</option>
+          </select>
+        </div>
+
+        <div class="modal-row">
+          <label class="modal-label">Account Status</label>
+          <div class="toggle-row">
+            <label class="toggle">
+              <input type="checkbox" id="edit-active">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label" id="edit-active-label">Active</span>
+          </div>
+          <div class="toggle-row" style="margin-top:10px">
+            <label class="toggle">
+              <input type="checkbox" id="edit-locked">
+              <span class="toggle-slider toggle-slider--danger"></span>
+            </label>
+            <span class="toggle-label" id="edit-locked-label">Locked</span>
+          </div>
+        </div>
+
+        <div class="modal-row">
+          <label class="modal-label">Department Access</label>
+          <div class="dept-grid" id="edit-depts">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <div class="modal-row">
+          <label class="modal-label">Admin Notes</label>
+          <textarea id="edit-notes" class="modal-textarea" placeholder="Optional notes…" rows="3"></textarea>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button class="btn-primary"   onclick="saveUser()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── APPROVE MODAL ──────────────────────────────────────────────────── -->
+  <div id="approve-overlay" class="modal-overlay">
+    <div class="modal modal--narrow">
+      <div class="modal-header">
+        <div class="modal-title">Approve Registration</div>
+        <button class="modal-close" onclick="closeApproveModal()">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <div class="approve-info" id="approve-info">—</div>
+
+        <div class="modal-row">
+          <label class="modal-label">Assign Role</label>
+          <select id="approve-role" class="modal-select">
+            <option value="viewer">Viewer</option>
+            <option value="editor">Editor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        <div class="modal-row">
+          <label class="modal-label">Department Access</label>
+          <div class="dept-grid" id="approve-depts">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn-danger"    onclick="rejectUser()">Reject</button>
+        <div style="flex:1"></div>
+        <button class="btn-secondary" onclick="closeApproveModal()">Cancel</button>
+        <button class="btn-primary"   onclick="approveUser()">Approve &amp; Activate</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/admin.js"></script>
+</body>
+</html>
