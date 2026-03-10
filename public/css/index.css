@@ -217,6 +217,25 @@ input::placeholder { color: var(--muted); }
   min-height: 18px;
 }
 
+/* ── PANEL TOGGLE ────────────────────────────────────────────────────────── */
+.switch-link {
+  margin-top: 18px;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.switch-link a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.switch-link a:hover { text-decoration: underline; }
+
+#panel-register { display: none; }
+
 /* ── FOOTER ──────────────────────────────────────────────────────────────── */
 .footer-note {
   margin-top: 24px;

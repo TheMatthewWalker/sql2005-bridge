@@ -50,6 +50,7 @@ export function requireRole(minimumRole) {
     const userLevel = ROLE_LEVEL[userRole]  ?? 0;
     const minLevel  = ROLE_LEVEL[minimumRole] ?? 99;
 
+    if (userRole === 'superadmin') return next();
     if (userLevel >= minLevel) return next();
 
     const isApiRoute = req.path.startsWith('/api/') || req.xhr ||

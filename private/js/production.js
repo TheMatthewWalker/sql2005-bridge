@@ -67,18 +67,14 @@ document.querySelectorAll('.tbl-item:not(.report-item)').forEach(item => {
     // Switching table always resets the filter and hides the report panel
     activeFilter = null;
     currentReport = null;
-    if (typeof reportChart !== 'undefined' && reportChart) {
-      reportChart.destroy(); reportChart = null;
-    }
+    if (typeof reportChart  !== 'undefined' && reportChart)  { reportChart.destroy();  reportChart  = null; }
+    if (typeof reportChart2 !== 'undefined' && reportChart2) { reportChart2.destroy(); reportChart2 = null; }
+    if (typeof reportChart3 !== 'undefined' && reportChart3) { reportChart3.destroy(); reportChart3 = null; }
+    if (typeof reportChart4 !== 'undefined' && reportChart4) { reportChart4.destroy(); reportChart4 = null; }
     document.getElementById('report-panel').style.display = 'none';
     document.getElementById('data-panel').style.display   = '';
     loadTable(item.dataset.table, item.dataset.pk || null);
   });
-});
-
-// Allow pressing Enter in the value box to trigger a search
-document.getElementById('filter-val').addEventListener('keydown', e => {
-  if (e.key === 'Enter') applyFilter();
 });
 
 // ── Build SQL for the current table + optional filter ─────────────────────────
@@ -93,7 +89,7 @@ document.getElementById('filter-val').addEventListener('keydown', e => {
 // passed as a separate parameter via the /api/filter-records endpoint below.
 function buildQuery(tableName, filter) {
   if (!filter) {
-    return { sql: `SELECT TOP 500 * FROM dbo.${tableName}`, parameterised: false };
+    return { sql: `SELECT * FROM dbo.${tableName}`, parameterised: false };
   }
   return { tableName, col: filter.col, mode: filter.mode, val: filter.val, parameterised: true };
 }
@@ -130,7 +126,7 @@ async function loadTable(tableName, pkCol, filter = null) {
       const res  = await fetch('/query', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ query: `SELECT TOP 500 * FROM dbo.${tableName}` }),
+        body:    JSON.stringify({ query: `SELECT * FROM dbo.${tableName}` }),
       });
       const data = await res.json();
       if (!data.success) { showError(data.error || 'Query failed'); return; }
@@ -155,29 +151,30 @@ async function loadTable(tableName, pkCol, filter = null) {
     if (records.length === 0) {
       document.getElementById('data-panel').innerHTML = emptyBlock();
       document.getElementById('row-badge').textContent = '0 rows';
-      // Still populate column dropdown if we already know the columns
-      if (currentColumns.length === 0 && !filter) {
-        // Can't infer columns from empty result — leave bar as-is
-      }
-      updateFilterUI(filter);
       return;
     }
 
     currentRows    = records;
     currentColumns = Object.keys(records[0]);
 
-    document.getElementById('row-badge').textContent =
-      `${records.length}${records.length === 500 && !filter ? '+ rows (top 500)' : ' rows'}`;
+    document.getElementById('row-badge').textContent = `${records.length} rows`;
 
-    // Populate column dropdown (first load only, or when table changes)
-    populateColumnDropdown(currentColumns);
-
-    // Show the filter bar
-    document.getElementById('filter-bar').classList.add('visible');
-
-    // Render table
-    document.getElementById('data-panel').innerHTML = buildTableHTML(records, 'main-dt');
-    activeDT = new DataTable('#main-dt', { pageLength: 25, scrollX: true });
+    // Render table with per-column filter inputs
+    document.getElementById('data-panel').innerHTML = buildTableHTML(records, 'main-dt', true);
+    activeDT = new DataTable('#main-dt', {
+      pageLength:    10,
+      scrollX:       true,
+      orderCellsTop: true,
+      initComplete:  function () {
+        const api = this.api();
+        // Wire each column filter input — every column has one so idx === column index
+        api.table().header().querySelectorAll('.col-filter-input').forEach((input, idx) => {
+          input.addEventListener('input', function () {
+            api.column(idx).search(this.value).draw();
+          });
+        });
+      },
+    });
 
     // Right-click via delegation on the tbody so it works across all pages.
     // DataTables re-renders rows on page change; attaching to individual <tr>
@@ -197,59 +194,9 @@ async function loadTable(tableName, pkCol, filter = null) {
       showCtx(e, tableName);
     });
 
-    updateFilterUI(filter);
-
   } catch (err) {
     showError(err.message);
   }
-}
-
-// ── Filter helpers ────────────────────────────────────────────────────────────
-function populateColumnDropdown(cols) {
-  const sel = document.getElementById('filter-col');
-  // Preserve current selection if the column still exists
-  const prev = sel.value;
-  sel.innerHTML = '';
-  cols.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c; opt.textContent = c;
-    sel.appendChild(opt);
-  });
-  if (prev && cols.includes(prev)) sel.value = prev;
-}
-
-function updateFilterUI(filter) {
-  const clearBtn   = document.getElementById('btn-clear');
-  const badge      = document.getElementById('filter-badge');
-
-  if (filter) {
-    clearBtn.classList.add('visible');
-    badge.classList.add('visible');
-    // Restore the inputs to reflect the active filter
-    document.getElementById('filter-col').value  = filter.col;
-    document.getElementById('filter-mode').value = filter.mode;
-    document.getElementById('filter-val').value  = filter.val;
-  } else {
-    clearBtn.classList.remove('visible');
-    badge.classList.remove('visible');
-  }
-}
-
-async function applyFilter() {
-  if (!currentTable) return;
-  const col  = document.getElementById('filter-col').value;
-  const mode = document.getElementById('filter-mode').value;
-  const val  = document.getElementById('filter-val').value.trim();
-  if (!val) { alert('Please enter a value to filter by.'); return; }
-
-  activeFilter = { col, mode, val };
-  await loadTable(currentTable, currentPK, activeFilter);
-}
-
-async function clearFilter() {
-  activeFilter = null;
-  document.getElementById('filter-val').value = '';
-  await loadTable(currentTable, currentPK, null);
 }
 
 // ── Context menu ──────────────────────────────────────────────────────────────
@@ -427,11 +374,17 @@ async function exportXLSX() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function buildTableHTML(rows, id) {
+function buildTableHTML(rows, id, filterable = false) {
   const cols = Object.keys(rows[0]);
   let h = `<table id="${id}" style="width:100%"><thead><tr>`;
   cols.forEach(c => { h += `<th>${esc(c)}</th>`; });
-  h += '</tr></thead><tbody>';
+  h += '</tr>';
+  if (filterable) {
+    h += '<tr class="col-filter-row">';
+    cols.forEach(c => { h += `<th><input class="col-filter-input" type="text" placeholder="${esc(c)}…" data-col="${esc(c)}"></th>`; });
+    h += '</tr>';
+  }
+  h += '</thead><tbody>';
   rows.forEach(row => {
     h += '<tr>';
     cols.forEach(c => {
@@ -473,6 +426,17 @@ function emptyBlock() {
 
 let currentReport = null;   // name of the active report
 let reportChart   = null;   // Chart.js instance — destroyed before each redraw
+let reportDT      = null;   // DataTable instance for table-type reports
+
+// ── Grouped reports — sidebar key maps to one or more sub-report keys ─────────
+// Add new sub-reports here as they are created in routes/reports.js
+const REPORT_GROUPS = {
+  Firewall: [
+    { key: 'Firewall_FailedByBatch', label: 'Failed Qty by Batch & Reason' },
+    { key: 'Firewall_FailedByMaterial', label: 'Failed Percentage by Material' },
+    { key: 'Firewall_FailedByReason', label: 'Failed Amount by Reason' },
+  ],
+};
 
 // Palette — one colour per bar, cycling if more bars than colours
 const CHART_COLOURS = [
@@ -494,21 +458,48 @@ function defaultDates() {
 // ── Sidebar — report items ────────────────────────────────────────────────────
 document.querySelectorAll('.report-item').forEach(item => {
   item.addEventListener('click', () => {
-    // Deselect all sidebar items
     document.querySelectorAll('.tbl-item').forEach(i => i.classList.remove('active'));
     item.classList.add('active');
 
-    currentReport = item.dataset.report;
+    const groupKey = item.dataset.report;
+    const group    = REPORT_GROUPS[groupKey];
 
     // Hide table UI, show report panel
-    document.getElementById('toolbar').style.display    = 'none';
-    document.getElementById('filter-bar').classList.remove('visible');
-    document.getElementById('data-panel').style.display = 'none';
+    document.getElementById('toolbar').style.display      = 'none';
+    document.getElementById('data-panel').style.display   = 'none';
     document.getElementById('report-panel').style.display = 'flex';
 
-    // Set title
-    document.getElementById('report-title').textContent = `${currentReport} — Report`;
-    document.getElementById('report-hint').textContent  = 'Set a date range and click Run';
+    const subnavEl = document.getElementById('report-subnav');
+
+    if (group) {
+      // Build pill buttons for each sub-report
+      subnavEl.style.display = 'flex';
+      subnavEl.innerHTML = group.map((s, i) =>
+        `<button class="subnav-btn${i === 0 ? ' active' : ''}" data-report-key="${s.key}">${esc(s.label)}</button>`
+      ).join('');
+
+      subnavEl.querySelectorAll('.subnav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          subnavEl.querySelectorAll('.subnav-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentReport = btn.dataset.reportKey;
+          document.getElementById('report-title').textContent = `${groupKey} — ${btn.textContent}`;
+          document.getElementById('report-hint').textContent  = 'Set a date range and click Run';
+          resetReportBody();
+        });
+      });
+
+      // Activate first sub-report by default
+      currentReport = group[0].key;
+      document.getElementById('report-title').textContent = `${groupKey} — ${group[0].label}`;
+      document.getElementById('report-hint').textContent  = 'Set a date range and click Run';
+    } else {
+      subnavEl.style.display = 'none';
+      subnavEl.innerHTML     = '';
+      currentReport = groupKey;
+      document.getElementById('report-title').textContent = `${groupKey} — Report`;
+      document.getElementById('report-hint').textContent  = 'Set a date range and click Run';
+    }
 
     // Pre-fill date inputs with defaults if empty
     const fromEl = document.getElementById('rpt-from');
@@ -519,14 +510,22 @@ document.querySelectorAll('.report-item').forEach(item => {
       toEl.value   = d.to;
     }
 
-    // Reset body to placeholder
-    document.getElementById('report-body').innerHTML = `
-      <div class="placeholder">
-        <div class="placeholder-hex" style="color:var(--sidebar-bg)"><img src="./images/logo256.png" alt="Kongsberg Logo"></div>
-        <div class="placeholder-line1">Set a date range and click Run</div>
-      </div>`;
+    resetReportBody();
   });
 });
+
+function resetReportBody() {
+  if (reportChart)  { reportChart.destroy();  reportChart  = null; }
+  if (reportChart2) { reportChart2.destroy(); reportChart2 = null; }
+  if (reportChart3) { reportChart3.destroy(); reportChart3 = null; }
+  if (reportChart4) { reportChart4.destroy(); reportChart4 = null; }
+  if (reportDT)     { try { reportDT.destroy(); } catch (_) {} reportDT = null; }
+  document.getElementById('report-body').innerHTML = `
+    <div class="placeholder">
+      <div class="placeholder-hex"><img src="./images/logo256.png" alt="Kongsberg Logo"></div>
+      <div class="placeholder-line1">Set a date range and click Run</div>
+    </div>`;
+}
 
 
 
@@ -564,12 +563,14 @@ async function runReport() {
       return;
     }
 
-    if (!data.rows || data.rows.length === 0) {
+    const hasRows = data.rows && data.rows.length > 0;
+    const hasCharts = (data.chartRows1 && data.chartRows1.length > 0) || (data.chartRows && data.chartRows.length > 0) || (data.chartData && data.chartData.length > 0);
+    if (!hasRows && !hasCharts) {
       body.innerHTML = `<div class="report-empty">No data found for this period.</div>`;
       return;
     }
 
-    renderReport(data.rows, data.meta, dateFrom, dateTo);
+    renderReport(data.rows, data.meta, dateFrom, dateTo, data.chartRows, data.chartRows1, data.chartRows2, data.chartData);
 
   } catch (err) {
     body.innerHTML = `<div class="report-empty">✕ ${esc(err.message)}</div>`;
@@ -577,11 +578,273 @@ async function runReport() {
 }
 
 // ── Render chart + pivot table ────────────────────────────────────────────────
-function renderReport(rows, meta, dateFrom, dateTo) {
+let reportChart2 = null;  // second Chart.js instance for double-chart type
+let reportChart3 = null;  // third Chart.js instance for quad-chart type
+let reportChart4 = null;  // fourth Chart.js instance for quad-chart type
+
+function renderReport(rows, meta, dateFrom, dateTo, chartRows, chartRows1, chartRows2, chartData) {
   const body = document.getElementById('report-body');
 
-  // Destroy old chart instance before replacing the canvas
-  if (reportChart) { reportChart.destroy(); reportChart = null; }
+  // Destroy old chart instances before replacing canvases
+  if (reportChart)  { reportChart.destroy();  reportChart  = null; }
+  if (reportChart2) { reportChart2.destroy(); reportChart2 = null; }
+  if (reportChart3) { reportChart3.destroy(); reportChart3 = null; }
+  if (reportChart4) { reportChart4.destroy(); reportChart4 = null; }
+
+  // ── Quad chart — four bar charts in a 2×2 grid ───────────────────────────────
+  if (meta.type === 'quad-chart') {
+    const charts = chartData || [];
+    body.innerHTML = `
+      <div class="quad-chart-wrap">
+        ${charts.map((c, i) => `
+          <div class="chart-wrap">
+            <div class="chart-label">${esc(c.label)}</div>
+            <canvas id="qc-${i}"></canvas>
+          </div>`).join('')}
+      </div>`;
+
+    const instances = [null, null, null, null];
+    charts.forEach((c, i) => {
+      const labels    = c.rows.map(r => r.label);
+      const values    = c.rows.map(r => r.value);
+      const colours   = labels.map((_, j) => CHART_COLOURS[j % CHART_COLOURS.length]);
+      const isLine    = c.chartType === 'line';
+      const ctx = document.getElementById(`qc-${i}`).getContext('2d');
+      instances[i] = new Chart(ctx, {
+        type: c.chartType || 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label:           c.valueLabel,
+            data:            values,
+            ...(isLine ? {
+              borderColor:     CHART_COLOURS[0],
+              backgroundColor: CHART_COLOURS[0] + '33',
+              fill:            true,
+              tension:         0.3,
+              pointRadius:     3,
+            } : {
+              backgroundColor: colours,
+              borderRadius:    4,
+              borderSkipped:   false,
+            }),
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: t => ` ${c.valueLabel}: ${formatNum(t.parsed.y)}` } },
+          },
+          scales: {
+            x: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 10 }, color: '#4D6380', maxRotation: 35 }, grid: { color: '#D0DAE8' } },
+            y: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 10 }, color: '#4D6380', callback: v => formatNum(v) }, grid: { color: '#D0DAE8' }, title: { display: true, text: c.valueLabel, font: { family: "'JetBrains Mono', monospace", size: 10 }, color: '#4D6380' } },
+          },
+        },
+      });
+    });
+    [reportChart, reportChart2, reportChart3, reportChart4] = instances;
+    return;
+  }
+
+  // ── Double chart — two bar charts side by side ────────────────────────────────
+  if (meta.type === 'double-chart') {
+    body.innerHTML = `
+      <div class="double-chart-wrap">
+        <div class="chart-wrap">
+          <div class="chart-label">${esc(meta.chart1Label)}</div>
+          <canvas id="report-canvas-1"></canvas>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-label">${esc(meta.chart2Label)}</div>
+          <canvas id="report-canvas-2"></canvas>
+        </div>
+      </div>`;
+
+    function makeChart(canvasId, cRows, label) {
+      const labels  = cRows.map(r => r.label);
+      const values  = cRows.map(r => r.value);
+      const colours = labels.map((_, i) => CHART_COLOURS[i % CHART_COLOURS.length]);
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      return new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label,
+            data:            values,
+            backgroundColor: colours,
+            borderRadius:    4,
+            borderSkipped:   false,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: c => ` ${label}: ${formatNum(c.parsed.y)}` } },
+          },
+          scales: {
+            x: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 11 }, color: '#4D6380', maxRotation: 35 }, grid: { color: '#D0DAE8' } },
+            y: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 11 }, color: '#4D6380', callback: v => formatNum(v) }, grid: { color: '#D0DAE8' }, title: { display: true, text: label, font: { family: "'JetBrains Mono', monospace", size: 11 }, color: '#4D6380' } },
+          },
+        },
+      });
+    }
+
+    reportChart  = makeChart('report-canvas-1', chartRows1 || [], meta.chart1Label);
+    reportChart2 = makeChart('report-canvas-2', chartRows2 || [], meta.chart2Label);
+    return;
+  }
+
+  // ── Chart + filterable table combined ────────────────────────────────────────
+  if (meta.type === 'chart-filterable-table') {
+    const filterCols = meta.filterColumns || [];
+    const filterRow  = meta.columns.map(c =>
+      filterCols.includes(c)
+        ? `<th><input class="col-filter-input" type="text" placeholder="${esc(c)}…" data-col="${esc(c)}"></th>`
+        : `<th></th>`
+    ).join('');
+
+    body.innerHTML = `
+      <div class="chart-wrap">
+        <canvas id="report-canvas"></canvas>
+      </div>
+      <div class="pivot-wrap">
+        <table id="rpt-dt" style="width:100%">
+          <thead>
+            <tr>${meta.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr>
+            <tr class="col-filter-row">${filterRow}</tr>
+          </thead>
+          <tbody>
+            ${rows.map(row =>
+              `<tr>${meta.columns.map(c => {
+                const v = row[c];
+                return `<td>${esc(v != null ? String(v) : '')}</td>`;
+              }).join('')}</tr>`
+            ).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    // Draw bar chart from aggregated chartRows
+    const cLabels  = (chartRows || []).map(r => r.label);
+    const cValues  = (chartRows || []).map(r => r.value);
+    const cColours = cLabels.map((_, i) => CHART_COLOURS[i % CHART_COLOURS.length]);
+    const ctx = document.getElementById('report-canvas').getContext('2d');
+    reportChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: cLabels,
+        datasets: [{
+          label:           meta.valueLabel,
+          data:            cValues,
+          backgroundColor: cColours,
+          borderRadius:    4,
+          borderSkipped:   false,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${meta.valueLabel}: ${formatNum(c.parsed.y)}` } },
+        },
+        scales: {
+          x: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 11 }, color: '#4D6380', maxRotation: 35 }, grid: { color: '#D0DAE8' } },
+          y: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 11 }, color: '#4D6380', callback: v => formatNum(v) }, grid: { color: '#D0DAE8' }, title: { display: true, text: meta.valueLabel, font: { family: "'JetBrains Mono', monospace", size: 11 }, color: '#4D6380' } },
+        },
+      },
+    });
+
+    // Init filterable DataTable
+    reportDT = new DataTable('#rpt-dt', {
+      pageLength:    10,
+      scrollX:       true,
+      orderCellsTop: true,
+      initComplete:  function () {
+        const api = this.api();
+        api.table().header().querySelectorAll('.col-filter-input').forEach(input => {
+          const colIdx = meta.columns.indexOf(input.dataset.col);
+          if (colIdx === -1) return;
+          input.addEventListener('input', function () {
+            api.column(colIdx).search(this.value).draw();
+          });
+        });
+      },
+    });
+    return;
+  }
+
+  // ── Filterable table — column search inputs wired to DataTables ─────────────
+  if (meta.type === 'filterable-table') {
+    const filterCols = meta.filterColumns || [];
+    const filterRow  = meta.columns.map(c =>
+      filterCols.includes(c)
+        ? `<th><input class="col-filter-input" type="text" placeholder="${esc(c)}…" data-col="${esc(c)}"></th>`
+        : `<th></th>`
+    ).join('');
+
+    body.innerHTML = `
+      <div class="pivot-wrap">
+        <table id="rpt-dt" style="width:100%">
+          <thead>
+            <tr>${meta.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr>
+            <tr class="col-filter-row">${filterRow}</tr>
+          </thead>
+          <tbody>
+            ${rows.map(row =>
+              `<tr>${meta.columns.map(c => {
+                const v = row[c];
+                return `<td>${esc(v != null ? String(v) : '')}</td>`;
+              }).join('')}</tr>`
+            ).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    reportDT = new DataTable('#rpt-dt', {
+      pageLength:   10,
+      scrollX:      true,
+      orderCellsTop: true,
+      initComplete: function () {
+        const api        = this.api();
+        // With scrollX, DataTables moves <thead> into a separate scroll-header
+        // container — query through the API's header node so we find the inputs
+        // in the actual rendered DOM, not the original (now-empty) <thead>.
+        api.table().header().querySelectorAll('.col-filter-input').forEach(input => {
+          const colIdx = meta.columns.indexOf(input.dataset.col);
+          if (colIdx === -1) return;
+          input.addEventListener('input', function () {
+            api.column(colIdx).search(this.value).draw();
+          });
+        });
+      },
+    });
+    return;
+  }
+
+  // ── Table report (raw columns) ────────────────────────────────────────────
+  if (meta.type === 'table') {
+    body.innerHTML = `
+      <div class="pivot-wrap">
+        <table id="rpt-dt" style="width:100%">
+          <thead>
+            <tr>${meta.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${rows.map(row =>
+              `<tr>${meta.columns.map(c => {
+                const v = row[c];
+                return `<td>${esc(v != null ? String(v) : '')}</td>`;
+              }).join('')}</tr>`
+            ).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    reportDT = new DataTable('#rpt-dt', { pageLength: 10, scrollX: true });
+    return;
+  }
 
   const labels = rows.map(r => r.label);
   const values = rows.map(r => r.value);

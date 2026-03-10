@@ -108,7 +108,7 @@
 .page-title-bar {
   position: relative; z-index: 1;
   background: var(--sidebar-bg);
-  padding: 32px 32px 30px;
+  padding: 15px;
   overflow: hidden;
 }
 
@@ -125,7 +125,7 @@
 .page-title-bar::after {
   content: '';
   position: absolute; top: -40px; left: -40px;
-  width: 300px; height: 200px;
+  width: 300px; height: 150px;
   background: radial-gradient(ellipse, rgba(124,58,237,0.2) 0%, transparent 70%);
   pointer-events: none;
 }
@@ -640,6 +640,42 @@
     gap: 24px;
   }
   
+  /* Double-chart layout — two charts side by side */
+  .double-chart-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  /* Quad-chart layout — 2×2 grid that fills the report-body */
+  .quad-chart-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows:    1fr 1fr;
+    gap: 16px;
+    height: 100%;
+  }
+
+  /* When a quad-chart is active, suppress report-body scroll so grid fills viewport */
+  .report-body:has(.quad-chart-wrap) {
+    overflow: hidden;
+  }
+
+  /* Chart cells inside the grid must not use a fixed height */
+  .quad-chart-wrap .chart-wrap {
+    height: auto;
+    min-height: 0;
+  }
+
+  .chart-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: 8px;
+  }
+
   /* Chart wrapper — fixed height so canvas renders correctly */
   .chart-wrap {
     background: var(--surface);
@@ -708,6 +744,63 @@
     color: var(--accent2);
   }
   
+  /* Column filter inputs in filterable-table header row */
+  .col-filter-row th { padding: 6px 8px; }
+
+  .col-filter-input {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    width: 100%;
+    padding: 4px 7px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+    color: #fff;
+    box-sizing: border-box;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .col-filter-input::placeholder { color: rgba(255,255,255,0.35); }
+  .col-filter-input:focus {
+    outline: none;
+    background: rgba(255,255,255,0.14);
+    border-color: var(--accent3);
+  }
+
+  /* Sub-report pill selector — hidden by default, shown via JS when a grouped report is active */
+  .report-subnav {
+    display: none;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 20px;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .subnav-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 5px 14px;
+    background: var(--surface);
+    border: 1.5px solid var(--border2);
+    border-radius: 20px;
+    color: var(--text-dim);
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .subnav-btn:hover {
+    background: var(--accent-dim);
+    border-color: var(--accent3);
+    color: var(--accent2);
+  }
+  .subnav-btn.active {
+    background: var(--accent);
+    border-color: var(--accent2);
+    color: #fff;
+  }
+
   /* No-data state inside report-body */
   .report-empty {
     display: flex; flex-direction: column;

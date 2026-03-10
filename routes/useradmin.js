@@ -24,6 +24,8 @@ import { sqlConfig } from '../server.js';
 
 const router = express.Router();
 
+const ROLE_LEVEL = { viewer: 1, editor: 2, admin: 3, superadmin: 4 };
+
 // ── Audit helper ──────────────────────────────────────────────────────────────
 async function audit(eventType, actorUsername, detail, req) {
   try {
@@ -133,6 +135,26 @@ router.put('/users/:id', async (req, res) => {
     }
     const prev = current.recordset[0];
 
+    // ── Role-level guards (superadmin bypasses) ───────────────────────────────
+    const actorRole   = req.session.user.role;
+    const actorLevel  = ROLE_LEVEL[actorRole]  ?? 0;
+    const targetLevel = ROLE_LEVEL[prev.Role]  ?? 0;
+
+    if (actorRole !== 'superadmin') {
+      if (targetLevel >= actorLevel) {
+        return res.status(403).json({
+          success: false,
+          error: 'You cannot edit a user with an equal or higher role.',
+        });
+      }
+      if (role && (ROLE_LEVEL[role] ?? 0) >= actorLevel) {
+        return res.status(403).json({
+          success: false,
+          error: 'You cannot assign a role equal to or higher than your own.',
+        });
+      }
+    }
+
     // Update user record
     await pool.request()
       .input('userID',   sql.Int,          userID)
@@ -202,11 +224,21 @@ router.post('/users/:id/approve', async (req, res) => {
 
   const { role = 'viewer', departments = [] } = req.body;
 
-  const VALID_ROLES = ['viewer', 'editor', 'admin'];
+  const VALID_ROLES = ['viewer', 'editor', 'admin', 'superadmin'];
   const VALID_DEPTS = ['production','logistics','warehouse','finance','sales','quality','engineering','management'];
 
   if (!VALID_ROLES.includes(role)) {
     return res.status(400).json({ success: false, error: 'Invalid role' });
+  }
+
+  // Cannot approve a user into a role >= own level (superadmin bypasses)
+  const actorRole  = req.session.user.role;
+  const actorLevel = ROLE_LEVEL[actorRole] ?? 0;
+  if (actorRole !== 'superadmin' && (ROLE_LEVEL[role] ?? 0) >= actorLevel) {
+    return res.status(403).json({
+      success: false,
+      error: 'You cannot approve a user into a role equal to or higher than your own.',
+    });
   }
   if (!departments.every(d => VALID_DEPTS.includes(d))) {
     return res.status(400).json({ success: false, error: 'Invalid department in list' });

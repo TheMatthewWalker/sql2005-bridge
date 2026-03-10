@@ -133,6 +133,13 @@ app.get('/private/:page', requireLogin, (req, res, next) => {
     });
   }
 
+    // admin.html — requires admin role minimum
+  if (page === 'rawsql.html') {
+    return requireRole('superadmin')(req, res, () => {
+      res.sendFile(path.join(__dirname, 'private', page));
+    });
+  }
+
   // landing.html and other pages — just requireLogin (already checked)
   res.sendFile(path.join(__dirname, 'private', page));
 });
@@ -147,6 +154,10 @@ app.get('/private/css/:file', requireLogin, (req, res) => {
   res.sendFile(filePath);
 });
 
+app.get('/private/images/:file', requireLogin, (req, res) => {
+  const filePath = path.join(__dirname, 'private', 'images', req.params.file);
+  res.sendFile(filePath);
+});
 
 export const sqlConfig = {
   user: config.sqlConfig.user,
@@ -221,6 +232,25 @@ app.get("/rawsql", (req, res) => {
 
 */
 
+// ── Audit helper — writes to dbo.PortalAuditLog (fire-and-forget) ─────────────
+async function auditQuery(eventType, username, detail, req) {
+  try {
+    const pool = await sql.connect(sqlConfig);
+    const ip   = req.ip || req.socket?.remoteAddress || null;
+    await pool.request()
+      .input('username',  sql.NVarChar(80),  username  || null)
+      .input('eventType', sql.NVarChar(50),  eventType)
+      .input('detail',    sql.NVarChar(500), detail    || null)
+      .input('ip',        sql.NVarChar(45),  ip)
+      .query(`
+        INSERT INTO dbo.PortalAuditLog (Username, EventType, Detail, IPAddress)
+        VALUES (@username, @eventType, @detail, @ip)
+      `);
+  } catch (err) {
+    console.error('[audit]', err.message);
+  }
+}
+
 // ✅ Query API (still requires API key)
 app.post("/query", requireLogin, async (req, res) => {
   const { query } = req.body;
@@ -230,13 +260,15 @@ app.post("/query", requireLogin, async (req, res) => {
   const normalized = query.trim().toUpperCase();
 
   // Allow Admin to by-pass the block.
-  const userRole = req.session?.user?.role;
+  const userRole   = req.session?.user?.role;
+  const username   = req.session?.user?.username || null;
   const serverAdmin = userRole === 'admin' || userRole === 'superadmin';
 
   if (!serverAdmin) {
     // 🚫 Block any dangerous keywords even if embedded later
     const forbidden = ["DELETE", "DROP", "UPDATE", "INSERT", "ALTER", "TRUNCATE", "EXEC", "MERGE"];
     if (forbidden.some(word => normalized.includes(word))) {
+      auditQuery('RAW_SQL_BLOCKED', username, query.slice(0, 500), req);
       return res.status(403).json({ error: `Forbidden keyword detected: one of ${forbidden.join(", ")}` });
     }
   }
@@ -244,6 +276,7 @@ app.post("/query", requireLogin, async (req, res) => {
   try {
     const pool = await sql.connect(sqlConfig);
     const result = await pool.request().query(query);
+    auditQuery('RAW_SQL', username, query.slice(0, 500), req);
     // Always return JSON, even if recordset is empty (e.g., for INSERT/DELETE)
     res.json({
       success: true,
@@ -252,6 +285,7 @@ app.post("/query", requireLogin, async (req, res) => {
     });
   } catch (err) {
     console.error(err);
+    auditQuery('RAW_SQL_ERROR', username, `${query.slice(0, 400)} — ERR: ${err.message.slice(0, 80)}`, req);
     res.status(500).json({ success: false, error: err.message });
   }
 });

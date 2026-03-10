@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Kongsberg // Access Denied</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/index.css">
+  <style>
+    .error-card {
+      text-align: center;
+      padding: 48px 40px 40px;
+    }
+    .error-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 64px;
+      font-weight: 700;
+      color: var(--border);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .error-title {
+      font-family: 'Manrope', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .error-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    .error-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-back {
+      display: block;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--accent2), var(--accent3));
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-family: 'Manrope', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      text-decoration: none;
+      text-align: center;
+      cursor: pointer;
+      box-shadow: 0 3px 12px rgba(37,99,235,0.35);
+      transition: opacity 0.2s;
+    }
+    .btn-back:hover { opacity: 0.9; }
+    .btn-logout-link {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-decoration: none;
+      text-align: center;
+    }
+    .btn-logout-link:hover { color: var(--error); }
+  </style>
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="brand">
+      <div class="brand-logo">
+        <div class="brand-icon"><img src="/images/logo32.png" alt="Kongsberg Logo"></div>
+        <span class="brand-name">Kongsberg</span>
+      </div>
+      <div class="brand-sub">Kongsberg Enterprise Portal</div>
+    </div>
+
+    <div class="card error-card">
+      <div class="error-code">403</div>
+      <div class="error-title">Access Denied</div>
+      <div class="error-sub">
+        You don't have permission to access this page.<br>
+        Contact your administrator if you believe this is an error.
+      </div>
+      <div class="error-actions">
+        <a href="/private/landing.html" class="btn-back">Return to Hub</a>
+        <a href="/logout" class="btn-logout-link">Sign out</a>
+      </div>
+    </div>
+
+    <div class="footer-note">Authorised access only &nbsp;·&nbsp; Session expires after 60 min</div>
+  </div>
+</body>
+</html>

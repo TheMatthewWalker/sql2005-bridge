@@ -16,14 +16,20 @@
       <a href="./landing.html" class="back-link">← Hub</a>
       <div class="brand-sep"></div>
       <div class="dept-badge">
-        <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M14 2v3M14 23v3M2 14h3M23 14h3M5.5 5.5l2.1 2.1M20.4 20.4l2.1 2.1M5.5 22.5l2.1-2.1M20.4 7.6l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 28 28" fill="none">
+          <circle cx="10" cy="8.5" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M2 24.5c0-4.5 3.6-7 8-7s8 2.5 8 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="21.5" cy="21.5" r="2.8" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M21.5 18v1M21.5 25v1M18 21.5h1M25 21.5h1M19.5 19.5l.7.7M22.8 22.8l.7.7M19.5 23.5l.7-.7M22.8 20.2l.7-.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
       </div>
       <span class="brand-name">User Administration</span>
     </div>
     <div class="header-right">
       <div class="user-badge">
         <div class="user-dot"></div>
-        <span>Connected</span>
+        <span id="session-user">…</span>
+        <span class="role-pill" id="session-role"></span>
       </div>
       <a href="/logout" class="btn-logout">Sign Out</a>
     </div>
@@ -124,7 +130,7 @@
             <div class="section-sub">All login attempts and administrative actions</div>
           </div>
           <div class="section-actions">
-            <select id="audit-filter" class="filter-select">
+            <select id="audit-filter" class="filter-select" aria-label="Filter audit events">
               <option value="">All events</option>
               <option value="LOGIN_OK">Successful logins</option>
               <option value="LOGIN_FAIL">Failed logins</option>
@@ -134,8 +140,11 @@
               <option value="ROLE_CHANGE">Role changes</option>
               <option value="DEPT_CHANGE">Dept changes</option>
               <option value="LOCKED">Account locks</option>
+              <option value="RAW_SQL">Raw SQL executed</option>
+              <option value="RAW_SQL_BLOCKED">Raw SQL blocked</option>
+              <option value="RAW_SQL_ERROR">Raw SQL errors</option>
             </select>
-            <button class="btn-secondary" onclick="loadAudit()">Refresh</button>
+            <button type="button" class="btn-secondary" onclick="loadAudit()">Refresh</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -164,13 +173,13 @@
     <div class="modal">
       <div class="modal-header">
         <div class="modal-title">Edit User — <span id="edit-username">—</span></div>
-        <button class="modal-close" onclick="closeEditModal()">✕</button>
+        <button type="button" class="modal-close" onclick="closeEditModal()">✕</button>
       </div>
       <div class="modal-body">
 
         <div class="modal-row">
           <label class="modal-label">Role</label>
-          <select id="edit-role" class="modal-select">
+          <select id="edit-role" class="modal-select" aria-label="User role">
             <option value="viewer">Viewer — read only</option>
             <option value="editor">Editor — can export &amp; filter</option>
             <option value="admin">Admin — dept admin + user approval</option>
@@ -182,14 +191,14 @@
           <label class="modal-label">Account Status</label>
           <div class="toggle-row">
             <label class="toggle">
-              <input type="checkbox" id="edit-active">
+              <input type="checkbox" id="edit-active" aria-label="Account active">
               <span class="toggle-slider"></span>
             </label>
             <span class="toggle-label" id="edit-active-label">Active</span>
           </div>
-          <div class="toggle-row" style="margin-top:10px">
+          <div class="toggle-row toggle-row--spaced">
             <label class="toggle">
-              <input type="checkbox" id="edit-locked">
+              <input type="checkbox" id="edit-locked" aria-label="Account locked">
               <span class="toggle-slider toggle-slider--danger"></span>
             </label>
             <span class="toggle-label" id="edit-locked-label">Locked</span>
@@ -210,8 +219,8 @@
 
       </div>
       <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
-        <button class="btn-primary"   onclick="saveUser()">Save Changes</button>
+        <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button type="button" class="btn-primary"   onclick="saveUser()">Save Changes</button>
       </div>
     </div>
   </div>
@@ -221,7 +230,7 @@
     <div class="modal modal--narrow">
       <div class="modal-header">
         <div class="modal-title">Approve Registration</div>
-        <button class="modal-close" onclick="closeApproveModal()">✕</button>
+        <button type="button" class="modal-close" onclick="closeApproveModal()">✕</button>
       </div>
       <div class="modal-body">
 
@@ -229,7 +238,7 @@
 
         <div class="modal-row">
           <label class="modal-label">Assign Role</label>
-          <select id="approve-role" class="modal-select">
+          <select id="approve-role" class="modal-select" aria-label="Assign role">
             <option value="viewer">Viewer</option>
             <option value="editor">Editor</option>
             <option value="admin">Admin</option>
@@ -245,10 +254,10 @@
 
       </div>
       <div class="modal-footer">
-        <button class="btn-danger"    onclick="rejectUser()">Reject</button>
-        <div style="flex:1"></div>
-        <button class="btn-secondary" onclick="closeApproveModal()">Cancel</button>
-        <button class="btn-primary"   onclick="approveUser()">Approve &amp; Activate</button>
+        <button type="button" class="btn-danger"    onclick="rejectUser()">Reject</button>
+        <div class="modal-spacer"></div>
+        <button type="button" class="btn-secondary" onclick="closeApproveModal()">Cancel</button>
+        <button type="button" class="btn-primary"   onclick="approveUser()">Approve &amp; Activate</button>
       </div>
     </div>
   </div>
