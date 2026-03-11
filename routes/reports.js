@@ -210,53 +210,79 @@ const REPORTS = {
     `,
   },
 
-    Firewall_FailedByMaterial: {
-      title:        'Failed Percentage by Material',
-      type:         'double-chart',
-      chart1Label:  'Material Failure % (TOP 10)',
-      chart1Column: 'MaterialFailurePercent',
-      chart2Label:  'Overall Contribution % (TOP 10)',
-      chart2Column: 'OverallFailurePercent',
-      groupColumn:  'Material',
-    sql: `
-      SELECT TOP 10
-        r.Material                            AS Material,
-        SUM(r.Failed) * 100.0 / SUM(r.Total) AS MaterialFailurePercent,
-        SUM(r.Failed) * 100.0 / SUM(SUM(r.Total)) OVER () AS OverallFailurePercent
-      FROM (
-        SELECT
-          a.Material                            AS Material,
-          SUM(d.total)                          AS Total,
-          SUM(a.failedqty)                      AS Failed,
-          MAX(e.CreationIso)                    AS Date
-        FROM dbo.firewall a
-        JOIN (
-          SELECT
-            b.sapbatch      AS sap,
-            MAX(b.pieces)   AS total,
-            MAX(c.creationdate)  AS qdate
-          FROM dbo.ewaldboxes b
-          JOIN dbo.ewald c ON b.ewaldid = c.id
-          GROUP BY b.sapbatch
-        ) AS d 
-          ON a.sapbatch = d.sap 
-        CROSS APPLY (
-          SELECT
-            SUBSTRING(d.qdate, 7, 4) + '-' + SUBSTRING(d.qdate, 4, 2) + '-' + SUBSTRING(d.qdate, 1, 2) AS CreationIso
-        ) e
-        WHERE ISDATE(e.CreationIso) = 1
-          AND e.CreationIso >= @dateFrom
-          AND e.CreationIso <= @dateTo
-        GROUP BY a.Material
-        ) r
-      GROUP BY Material
-      ORDER BY OverallFailurePercent DESC
-    `,
+  Firewall_FailedByMaterial: {
+    type:  'double-chart',
+    title: 'Overview',
+    charts: [
+      { label: 'Material Failure % (TOP 10)',    valueLabel: 'Percentage',   sql: `SELECT TOP 10
+                                                                                    r.Material                            AS label,
+                                                                                    SUM(r.Failed) * 100.0 / SUM(r.Total) AS value
+                                                                                  FROM (
+                                                                                    SELECT
+                                                                                      a.Material                            AS Material,
+                                                                                      SUM(d.total)                          AS Total,
+                                                                                      SUM(a.failedqty)                      AS Failed,
+                                                                                      MAX(e.CreationIso)                    AS Date
+                                                                                    FROM dbo.firewall a
+                                                                                    JOIN (
+                                                                                      SELECT
+                                                                                        b.sapbatch      AS sap,
+                                                                                        MAX(b.pieces)   AS total,
+                                                                                        MAX(c.creationdate)  AS qdate
+                                                                                      FROM dbo.ewaldboxes b
+                                                                                      JOIN dbo.ewald c ON b.ewaldid = c.id
+                                                                                      GROUP BY b.sapbatch
+                                                                                    ) AS d 
+                                                                                      ON a.sapbatch = d.sap 
+                                                                                    CROSS APPLY (
+                                                                                      SELECT
+                                                                                        SUBSTRING(d.qdate, 7, 4) + '-' + SUBSTRING(d.qdate, 4, 2) + '-' + SUBSTRING(d.qdate, 1, 2) AS CreationIso
+                                                                                    ) e
+                                                                                    WHERE ISDATE(e.CreationIso) = 1
+                                                                                      AND e.CreationIso >= @dateFrom
+                                                                                      AND e.CreationIso <= @dateTo
+                                                                                    GROUP BY a.Material
+                                                                                    ) r
+                                                                                  GROUP BY Material
+                                                                                  ORDER BY value DESC` },
+      { label: 'Overall Contribution % (TOP 10)',  valueLabel: 'Percentage',    sql: `SELECT TOP 10
+                                                                                        r.Material                            AS label,
+                                                                                        SUM(r.Failed) * 100.0 / SUM(SUM(r.Total)) OVER () AS value
+                                                                                      FROM (
+                                                                                        SELECT
+                                                                                          a.Material                            AS Material,
+                                                                                          SUM(d.total)                          AS Total,
+                                                                                          SUM(a.failedqty)                      AS Failed,
+                                                                                          MAX(e.CreationIso)                    AS Date
+                                                                                        FROM dbo.firewall a
+                                                                                        JOIN (
+                                                                                          SELECT
+                                                                                            b.sapbatch      AS sap,
+                                                                                            MAX(b.pieces)   AS total,
+                                                                                            MAX(c.creationdate)  AS qdate
+                                                                                          FROM dbo.ewaldboxes b
+                                                                                          JOIN dbo.ewald c ON b.ewaldid = c.id
+                                                                                          GROUP BY b.sapbatch
+                                                                                        ) AS d 
+                                                                                          ON a.sapbatch = d.sap 
+                                                                                        CROSS APPLY (
+                                                                                          SELECT
+                                                                                            SUBSTRING(d.qdate, 7, 4) + '-' + SUBSTRING(d.qdate, 4, 2) + '-' + SUBSTRING(d.qdate, 1, 2) AS CreationIso
+                                                                                        ) e
+                                                                                        WHERE ISDATE(e.CreationIso) = 1
+                                                                                          AND e.CreationIso >= @dateFrom
+                                                                                          AND e.CreationIso <= @dateTo
+                                                                                        GROUP BY a.Material
+                                                                                        ) r
+                                                                                      GROUP BY Material
+                                                                                      ORDER BY value DESC` },
+    ],
   },
 
   Firewall_FailedByReason: {
     title:   'Failed Amount by Reason',
-    type:    'chart',  // special case for percentage value charts
+    type:       'chart-table', 
+    AggregateLabel: 'Reason',
     valueLabel: 'Failed Units',
     sql: `
       SELECT
@@ -298,6 +324,7 @@ const REPORTS = {
 
   Staging: {
     title:      'Average Lead Time (Creation to Delivery)',
+    type:       'chart-table',
     valueLabel: 'Avg Hours',
     // For Staging we need datetime arithmetic, so we use CONVERT(datetime, col, 4)
     // which parses "dd.mm.yy hh:mm:ss" into a proper datetime value.
@@ -356,123 +383,118 @@ router.post('/', async (req, res) => {
   try {
     const pool = await sql.connect(sqlConfig);
 
-    // ── quad-chart: run each chart's SQL independently in parallel ──────────────
-    if (def.type === 'quad-chart') {
+  switch (def.type) {
+    case 'quad-chart':
+    case 'double-chart':
       const results = await Promise.all(def.charts.map(c =>
-        pool.request()
-          .input('dateFrom', sql.NVarChar(20), dateFrom)
-          .input('dateTo',   sql.NVarChar(20), dateTo)
-          .query(c.sql)
+      pool.request()
+        .input('dateFrom', sql.NVarChar(20), dateFrom)
+        .input('dateTo',   sql.NVarChar(20), dateTo)
+        .query(c.sql)
       ));
+      var raw = results.recordset || [];
       const chartData = results.map((r, i) => ({
-        label:      def.charts[i].label,
-        valueLabel: def.charts[i].valueLabel,
-        chartType:  def.charts[i].chartType || 'bar',
-        rows:       (r.recordset || []).map(row => ({
-          label: row.label != null ? String(row.label) : '(blank)',
-          value: row.value != null ? Number(row.value) : 0,
-        })),
-      }));
-      return res.json({ success: true, chartData, meta: { type: 'quad-chart', title: def.title } });
-    }
+          label:      def.charts[i].label,
+          valueLabel: def.charts[i].valueLabel,
+          chartType:  def.charts[i].chartType || 'bar',
+          rows:       (r.recordset || []).map(row => ({
+            label: row.label != null ? String(row.label) : '(blank)',
+            value: row.value != null ? Number(row.value) : 0,
+          })),
+        }));
+        if (def.type === 'quad-chart')
+          return res.json({ success: true, chartData, meta: { type: 'quad-chart', title: def.title } });
+        if (def.type === 'double-chart')
+          return res.json({ success: true, chartData, meta: { type: 'double-chart', title: def.title } });
+    break;
 
-    const result = await pool.request()
-      .input('dateFrom', sql.NVarChar(20), dateFrom)
-      .input('dateTo',   sql.NVarChar(20), dateTo)
-      .query(def.sql);
+    default:
+      const result = await pool.request()
+        .input('dateFrom', sql.NVarChar(20), dateFrom)
+        .input('dateTo',   sql.NVarChar(20), dateTo)
+        .query(def.sql);
 
-    const raw = result.recordset || [];
+      var raw = result.recordset || [];
 
-    switch (def.type) {
-    case 'double-chart': {
-      const grp = def.groupColumn;
-      const chartRows1 = raw.map(r => ({ label: String(r[grp] ?? '(blank)'), value: Number(r[def.chart1Column]) || 0 }));
-      const chartRows2 = raw.map(r => ({ label: String(r[grp] ?? '(blank)'), value: Number(r[def.chart2Column]) || 0 }));
-      res.json({
-        success: true,
-        chartRows1,
-        chartRows2,
-        meta: {
-          type:        'double-chart',
-          title:       def.title,
-          chart1Label: def.chart1Label,
-          chart2Label: def.chart2Label,
-        },
-      });
-      break;
-    }
+      switch (def.type) {
+  
+        case 'chart-filterable-table': 
+          // Aggregate raw rows into chart data using the definition's groupBy/aggregate fields
+          const groupBy   = def.chartGroupBy;
+          const aggCol    = def.chartAggregate;
+          const grouped   = {};
+          for (const row of raw) {
+            const label = row[groupBy] != null ? String(row[groupBy]) : '(blank)';
+            grouped[label] = (grouped[label] || 0) + (Number(row[aggCol]) || 0);
+          }
+          const chartRows = Object.entries(grouped)
+            .map(([label, value]) => ({ label, value }))
+            .sort((a, b) => b.value - a.value);
 
-    case 'chart-filterable-table': {
-      // Aggregate raw rows into chart data using the definition's groupBy/aggregate fields
-      const groupBy   = def.chartGroupBy;
-      const aggCol    = def.chartAggregate;
-      const grouped   = {};
-      for (const row of raw) {
-        const label = row[groupBy] != null ? String(row[groupBy]) : '(blank)';
-        grouped[label] = (grouped[label] || 0) + (Number(row[aggCol]) || 0);
+          res.json({
+            success: true,
+            rows: raw,
+            chartRows,
+            meta: {
+              type:          'chart-filterable-table',
+              title:         def.title,
+              valueLabel:    def.valueLabel,
+              columns:       def.columns,
+              filterColumns: def.filterColumns || [],
+            },
+          });
+        break;
+        
+
+        case 'filterable-table':
+          res.json({
+            success: true,
+            rows: raw,
+            meta: {
+              type:          'filterable-table',
+              title:         def.title,
+              columns:       def.columns,
+              filterColumns: def.filterColumns || [],
+            },
+          });
+        break;
+
+        case 'table':
+          // Return all columns as-is; consumer decides how to render
+          res.json({
+            success: true,
+            rows: raw,
+            meta: {
+              type:    'table',
+              title:   def.title,
+              columns: def.columns,
+            },
+          });
+        break;
+
+        case 'chart-table':
+          // Default: chart — map to { label, value }
+          const rows = raw.map(r => ({
+            label: r.label != null ? String(r.label) : '(blank)',
+            value: r.value != null ? Number(r.value)  : 0,
+          }));
+          res.json({
+            success: true,
+            rows,
+            meta: {
+              type:       'chart',
+              title:      def.title,
+              valueLabel: def.valueLabel,
+              AggregateLabel: def.AggregateLabel || '',
+            },
+          });
+        break;
       }
-      const chartRows = Object.entries(grouped)
-        .map(([label, value]) => ({ label, value }))
-        .sort((a, b) => b.value - a.value);
+    break;
+  }
 
-      res.json({
-        success: true,
-        rows: raw,
-        chartRows,
-        meta: {
-          type:          'chart-filterable-table',
-          title:         def.title,
-          valueLabel:    def.valueLabel,
-          columns:       def.columns,
-          filterColumns: def.filterColumns || [],
-        },
-      });
-      break;
-    }
 
-    case 'filterable-table':
-      res.json({
-        success: true,
-        rows: raw,
-        meta: {
-          type:          'filterable-table',
-          title:         def.title,
-          columns:       def.columns,
-          filterColumns: def.filterColumns || [],
-        },
-      });
-      break;
-
-    case 'table':
-      // Return all columns as-is; consumer decides how to render
-      res.json({
-        success: true,
-        rows: raw,
-        meta: {
-          type:    'table',
-          title:   def.title,
-          columns: def.columns,
-        },
-      });
-      break;
-
-    default: 
-      // Default: chart — map to { label, value }
-      const rows = raw.map(r => ({
-        label: r.label != null ? String(r.label) : '(blank)',
-        value: r.value != null ? Number(r.value)  : 0,
-      }));
-      res.json({
-        success: true,
-        rows,
-        meta: {
-          type:       'chart',
-          title:      def.title,
-          valueLabel: def.valueLabel,
-        },
-      });
-      break;
-    }
+    
 
   } catch (err) {
     console.error('[reports]', err.message);

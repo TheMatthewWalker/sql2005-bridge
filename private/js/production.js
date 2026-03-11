@@ -591,19 +591,23 @@ function renderReport(rows, meta, dateFrom, dateTo, chartRows, chartRows1, chart
   if (reportChart3) { reportChart3.destroy(); reportChart3 = null; }
   if (reportChart4) { reportChart4.destroy(); reportChart4 = null; }
 
-  // ── Quad chart — four bar charts in a 2×2 grid ───────────────────────────────
-  if (meta.type === 'quad-chart') {
+  // ── Multiple charts — 2×2 grid ───────────────────────────────
+  if (meta.type === 'quad-chart' || meta.type === 'double-chart') {
     const charts = chartData || [];
     body.innerHTML = `
-      <div class="quad-chart-wrap">
+      <div class="${meta.type}-wrap">
         ${charts.map((c, i) => `
           <div class="chart-wrap">
             <div class="chart-label">${esc(c.label)}</div>
             <canvas id="qc-${i}"></canvas>
           </div>`).join('')}
       </div>`;
-
-    const instances = [null, null, null, null];
+    
+    if (meta.type === 'quad-chart')
+      var instances = [null, null, null, null];
+    if (meta.type === 'double-chart')
+      var instances = [null, null];
+    
     charts.forEach((c, i) => {
       const labels    = c.rows.map(r => r.label);
       const values    = c.rows.map(r => r.value);
@@ -631,7 +635,7 @@ function renderReport(rows, meta, dateFrom, dateTo, chartRows, chartRows1, chart
           }],
         },
         options: {
-          responsive: true, maintainAspectRatio: false,
+          responsive: true, maintainAspectRatio: false, layout: { padding: { bottom: 12 } },
           plugins: {
             legend: { display: false },
             tooltip: { callbacks: { label: t => ` ${c.valueLabel}: ${formatNum(t.parsed.y)}` } },
@@ -643,57 +647,10 @@ function renderReport(rows, meta, dateFrom, dateTo, chartRows, chartRows1, chart
         },
       });
     });
-    [reportChart, reportChart2, reportChart3, reportChart4] = instances;
-    return;
-  }
-
-  // ── Double chart — two bar charts side by side ────────────────────────────────
-  if (meta.type === 'double-chart') {
-    body.innerHTML = `
-      <div class="double-chart-wrap">
-        <div class="chart-wrap">
-          <div class="chart-label">${esc(meta.chart1Label)}</div>
-          <canvas id="report-canvas-1"></canvas>
-        </div>
-        <div class="chart-wrap">
-          <div class="chart-label">${esc(meta.chart2Label)}</div>
-          <canvas id="report-canvas-2"></canvas>
-        </div>
-      </div>`;
-
-    function makeChart(canvasId, cRows, label) {
-      const labels  = cRows.map(r => r.label);
-      const values  = cRows.map(r => r.value);
-      const colours = labels.map((_, i) => CHART_COLOURS[i % CHART_COLOURS.length]);
-      const ctx = document.getElementById(canvasId).getContext('2d');
-      return new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label,
-            data:            values,
-            backgroundColor: colours,
-            borderRadius:    4,
-            borderSkipped:   false,
-          }],
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: c => ` ${label}: ${formatNum(c.parsed.y)}` } },
-          },
-          scales: {
-            x: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 11 }, color: '#4D6380', maxRotation: 35 }, grid: { color: '#D0DAE8' } },
-            y: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 11 }, color: '#4D6380', callback: v => formatNum(v) }, grid: { color: '#D0DAE8' }, title: { display: true, text: label, font: { family: "'JetBrains Mono', monospace", size: 11 }, color: '#4D6380' } },
-          },
-        },
-      });
-    }
-
-    reportChart  = makeChart('report-canvas-1', chartRows1 || [], meta.chart1Label);
-    reportChart2 = makeChart('report-canvas-2', chartRows2 || [], meta.chart2Label);
+    if (meta.type === 'quad-chart')
+      [reportChart, reportChart2, reportChart3, reportChart4] = instances;
+    if (meta.type === 'double-chart')
+        [reportChart, reportChart2] = instances;
     return;
   }
 
@@ -745,7 +702,7 @@ function renderReport(rows, meta, dateFrom, dateTo, chartRows, chartRows1, chart
         }],
       },
       options: {
-        responsive: true, maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false, layout: { padding: { bottom: 12 } },
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: c => ` ${meta.valueLabel}: ${formatNum(c.parsed.y)}` } },
@@ -846,123 +803,129 @@ function renderReport(rows, meta, dateFrom, dateTo, chartRows, chartRows1, chart
     return;
   }
 
-  const labels = rows.map(r => r.label);
-  const values = rows.map(r => r.value);
-  const total  = values.reduce((s, v) => s + v, 0);
+  // ── Chart-table report (raw columns + simple chart) ────────────────────────────────────────────
+  if (meta.type === 'chart-table') {
+    const labels = rows.map(r => r.label);
+    const values = rows.map(r => r.value);
+    const total  = values.reduce((s, v) => s + v, 0);
 
-  // Assign colours — cycle through palette
-  const colours = labels.map((_, i) => CHART_COLOURS[i % CHART_COLOURS.length]);
+    // Assign colours — cycle through palette
+    const colours = labels.map((_, i) => CHART_COLOURS[i % CHART_COLOURS.length]);
 
-  // Staging report shows a line chart (time series); all others use bar chart
-  const isTimeSeries = currentReport === 'Staging';
+    // Staging report shows a line chart (time series); all others use bar chart
+    const isTimeSeries = currentReport === 'Staging';
 
-  body.innerHTML = `
-    <div class="chart-wrap">
-      <canvas id="report-canvas"></canvas>
-    </div>
-    <div class="pivot-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>${currentReport === 'Mixing' ? 'Mix Code' : currentReport === 'Staging' ? 'Month' : 'Material'}</th>
-            <th style="text-align:right">${esc(meta.valueLabel)}</th>
-            <th style="text-align:right">% of Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => {
-            const pct = total > 0 ? ((r.value / total) * 100).toFixed(1) : '—';
-            return `<tr>
-              <td>${esc(r.label)}</td>
-              <td class="num">${formatNum(r.value)}</td>
-              <td class="num">${isTimeSeries ? '—' : pct + '%'}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td><strong>${isTimeSeries ? `${dateFrom} → ${dateTo}` : 'Total'}</strong></td>
-            <td class="num"><strong>${isTimeSeries ? (total / rows.length).toFixed(2) + ' avg' : formatNum(total)}</strong></td>
-            <td class="num"><strong>${isTimeSeries ? '' : '100%'}</strong></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>`;
+    body.innerHTML = `
+      <div class="chart-wrap">
+        <canvas id="report-canvas"></canvas>
+      </div>
+      <div class="pivot-wrap">
+        <table id="rpt-dt" style="width:100%">
+          <thead>
+            <tr>
+              <th>${esc(meta.AggregateLabel || 'Breakdown')}</th>
+              <th style="text-align:right">${esc(meta.valueLabel)}</th>
+              <th style="text-align:right">% of Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => {
+              const pct = total > 0 ? ((r.value / total) * 100).toFixed(1) : '—';
+              return `<tr>
+                <td>${esc(r.label)}</td>
+                <td class="num">${formatNum(r.value)}</td>
+                <td class="num">${isTimeSeries ? '—' : pct + '%'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td><strong>${isTimeSeries ? `${dateFrom} → ${dateTo}` : 'Total'}</strong></td>
+              <td class="num"><strong>${isTimeSeries ? (total / rows.length).toFixed(2) + ' avg' : formatNum(total)}</strong></td>
+              <td class="num"><strong>${isTimeSeries ? '' : '100%'}</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>`;
 
-  // Build Chart.js config
-  const ctx = document.getElementById('report-canvas').getContext('2d');
+    // Build Chart.js config
+    const ctx = document.getElementById('report-canvas').getContext('2d');
 
-  const chartCfg = isTimeSeries
-    ? {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label:           meta.valueLabel,
-            data:            values,
-            borderColor:     CHART_COLOURS[0],
-            backgroundColor: 'rgba(37,99,235,0.08)',
-            borderWidth:     2,
-            pointRadius:     4,
-            pointHoverRadius: 6,
-            fill:            true,
-            tension:         0.35,
-          }],
+    const chartCfg = isTimeSeries
+      ? {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label:           meta.valueLabel,
+              data:            values,
+              borderColor:     CHART_COLOURS[0],
+              backgroundColor: 'rgba(37,99,235,0.08)',
+              borderWidth:     2,
+              pointRadius:     4,
+              pointHoverRadius: 6,
+              fill:            true,
+              tension:         0.35,
+            }],
+          },
+        }
+      : {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              label:           meta.valueLabel,
+              data:            values,
+              backgroundColor: colours,
+              borderRadius:    4,
+              borderSkipped:   false,
+            }],
+          },
+        };
+
+    reportChart = new Chart(ctx, {
+      ...chartCfg,
+      options: {
+        responsive:          true,
+        maintainAspectRatio: false,
+        layout: { padding: { bottom: 12 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${meta.valueLabel}: ${formatNum(ctx.parsed.y)}`,
+            },
+          },
         },
-      }
-    : {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label:           meta.valueLabel,
-            data:            values,
-            backgroundColor: colours,
-            borderRadius:    4,
-            borderSkipped:   false,
-          }],
-        },
-      };
-
-  reportChart = new Chart(ctx, {
-    ...chartCfg,
-    options: {
-      responsive:          true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: ctx => ` ${meta.valueLabel}: ${formatNum(ctx.parsed.y)}`,
+        scales: {
+          x: {
+            ticks: {
+              font:  { family: "'JetBrains Mono', monospace", size: 11 },
+              color: '#4D6380',
+              maxRotation: 35,
+            },
+            grid: { color: '#D0DAE8' },
+          },
+          y: {
+            ticks: {
+              font:  { family: "'JetBrains Mono', monospace", size: 11 },
+              color: '#4D6380',
+              callback: v => formatNum(v),
+            },
+            grid:  { color: '#D0DAE8' },
+            title: {
+              display: true,
+              text:    meta.valueLabel,
+              font:    { family: "'JetBrains Mono', monospace", size: 11 },
+              color:   '#4D6380',
+            },
           },
         },
       },
-      scales: {
-        x: {
-          ticks: {
-            font:  { family: "'JetBrains Mono', monospace", size: 11 },
-            color: '#4D6380',
-            maxRotation: 35,
-          },
-          grid: { color: '#D0DAE8' },
-        },
-        y: {
-          ticks: {
-            font:  { family: "'JetBrains Mono', monospace", size: 11 },
-            color: '#4D6380',
-            callback: v => formatNum(v),
-          },
-          grid:  { color: '#D0DAE8' },
-          title: {
-            display: true,
-            text:    meta.valueLabel,
-            font:    { family: "'JetBrains Mono', monospace", size: 11 },
-            color:   '#4D6380',
-          },
-        },
-      },
-    },
-  });
+    });
+    reportDT = new DataTable('#rpt-dt', { pageLength: 10, scrollX: true });
+    return;
+  }
 }
 
 // ── Number formatter — commas + up to 2 decimal places ───────────────────────
