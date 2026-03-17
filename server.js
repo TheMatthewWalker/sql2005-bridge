@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from "express";
 import session from "express-session";
 import sql from "mssql";
@@ -179,6 +180,9 @@ export const sapConfig = {
   lang: config.sapConfig.lang,
   url: config.sapConfig.url
 };
+
+export const sapServerSecret = process.env.SAP_SERVER_SECRET
+    ?? (() => { throw new Error('SAP_SERVER_SECRET env var is not set'); })();
 
 // Role check helper — reads role from session (replaces config-based isAdmin)
 function isAdmin(username) {

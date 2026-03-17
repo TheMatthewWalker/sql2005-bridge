@@ -5,6 +5,7 @@
   <title>Kongsberg // Logistics</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="./css/logistics.css">
 </head>
 <body>
@@ -23,7 +24,7 @@
     <div class="header-right">
       <div class="user-badge">
         <div class="user-dot"></div>
-        <span>Connected</span>
+        <span id="session-user">Connected</span>
       </div>
       <a href="/logout" class="btn-logout">Sign Out</a>
     </div>
@@ -32,222 +33,110 @@
   <!-- PAGE TITLE BAR -->
   <div class="page-title-bar">
     <div class="page-title-inner">
-      <h1 class="page-title">Logistics</h1>
-      <p class="page-subtitle">Shipments, routes &amp; carrier management</p>
+      <h1 class="page-title">SAP Logistics</h1>
+      <p class="page-subtitle">Transport, purchasing &amp; deliveries · Select a function to begin</p>
     </div>
   </div>
 
-  <!-- APP BODY -->
-  <div class="app-body">
+  <!-- SAP MAIN -->
+  <div class="sap-main">
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-      <div class="sidebar-header">Database Tables</div>
-      <div class="sidebar-scroll">
+    <!-- TILE GRID -->
+    <div class="tile-section" id="tile-section">
+      <div class="tile-grid">
 
-        <div class="tbl-group-hdr">Production</div>
-
-        <div class="tbl-item" data-table="Batches" data-pk="Drum">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/><line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/></svg>
-          Picksheets <span class="tbl-tag">MAIN</span>
+        <div class="sap-tile sap-tile--placeholder" data-fn="purchaseOrders">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--soon">SOON</span>
+          <div class="tile-title">Purchase Orders</div>
+          <div class="tile-desc">Open purchase orders and delivery schedule lines</div>
         </div>
 
-        <div class="tbl-item" data-table="Ewald" data-pk="ID">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/><line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/></svg>
-          Ewald <span class="tbl-tag">MAIN</span>
+        <div class="sap-tile sap-tile--placeholder" data-fn="openDeliveries">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--soon">SOON</span>
+          <div class="tile-title">Open Deliveries</div>
+          <div class="tile-desc">Outbound deliveries pending dispatch or confirmation</div>
         </div>
 
-        <div class="tbl-item" data-table="Mixing" data-pk="MixingID">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/><line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/></svg>
-          Mixing <span class="tbl-tag">MAIN</span>
+        <div class="sap-tile sap-tile--placeholder" data-fn="goodsMovement">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--soon">SOON</span>
+          <div class="tile-title">Goods Movement</div>
+          <div class="tile-desc">Inbound and outbound material movement documents</div>
         </div>
 
-        <div class="tbl-item" data-table="Extrusion" data-pk="ExtBatch">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/><line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/></svg>
-          Extrusion <span class="tbl-tag">MAIN</span>
+        <div class="sap-tile sap-tile--placeholder" data-fn="transportOrders">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 17h1m16 0h1M5 17H4a1 1 0 01-1-1V5a1 1 0 011-1h11l5 5v7a1 1 0 01-1 1h-1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--soon">SOON</span>
+          <div class="tile-title">Transport Orders</div>
+          <div class="tile-desc">Freight and carrier transport order status</div>
         </div>
 
-        <div class="tbl-item" data-table="Convo" data-pk="ConvoID">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/><line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/></svg>
-          Convo <span class="tbl-tag">MAIN</span>
+        <div class="sap-tile sap-tile--placeholder" data-fn="carrierRates">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--soon">SOON</span>
+          <div class="tile-title">Carrier Rates</div>
+          <div class="tile-desc">Freight rate conditions and carrier agreements</div>
         </div>
 
-        <div class="tbl-item" data-table="Firewall" data-pk="SAPBatch">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/><line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/></svg>
-          Firewall <span class="tbl-tag">MAIN</span>
-        </div>
-
-        <div class="tbl-item" data-table="Staging" data-pk="StagingID">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/><line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/></svg>
-          Staging <span class="tbl-tag">MAIN</span>
-        </div>
-
-        <div class="tbl-group-hdr" style="margin-top:4px">Archive / Reference</div>
-
-        <div class="tbl-item" data-table="archive" data-pk="BatchID">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y=".5" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.1"/><line x1=".5" y1="4" x2="12.5" y2="4" stroke="currentColor" stroke-width="1"/></svg>
-          archive
-        </div>
-
-        <div class="tbl-group-hdr" style="margin-top:4px">Reports</div>
-
-        <div class="tbl-item report-item" data-report="Batches">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
-          Batches <span class="tbl-tag rpt-tag">RPT</span>
-        </div>
-
-        <div class="tbl-item report-item" data-report="Ewald">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
-          Ewald <span class="tbl-tag rpt-tag">RPT</span>
-        </div>
-
-        <div class="tbl-item report-item" data-report="Mixing">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
-          Mixing <span class="tbl-tag rpt-tag">RPT</span>
-        </div>
-
-        <div class="tbl-item report-item" data-report="Extrusion">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
-          Extrusion <span class="tbl-tag rpt-tag">RPT</span>
-        </div>
-
-        <div class="tbl-item report-item" data-report="Convo">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
-          Convo <span class="tbl-tag rpt-tag">RPT</span>
-        </div>
-
-        <div class="tbl-item report-item" data-report="Firewall">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
-          Firewall <span class="tbl-tag rpt-tag">RPT</span>
-        </div>
-
-        <div class="tbl-item report-item" data-report="Staging">
-          <svg class="tbl-icon" viewBox="0 0 13 13" fill="none"><rect x=".5" y="2.5" width="2.5" height="10" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="5" y="5.5" width="2.5" height="7" rx=".5" stroke="currentColor" stroke-width="1"/><rect x="9.5" y=".5" width="2.5" height="12" rx=".5" stroke="currentColor" stroke-width="1"/></svg>
-          Staging <span class="tbl-tag rpt-tag">RPT</span>
+        <div class="sap-tile sap-tile--placeholder" data-fn="customsDocs">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--soon">SOON</span>
+          <div class="tile-title">Customs Documents</div>
+          <div class="tile-desc">Export declarations and customs clearance documents</div>
         </div>
 
       </div>
-    </aside>
+    </div>
 
-    <!-- CONTENT -->
-    <div class="content">
-
-      <!-- Top toolbar: table name + row count + export -->
-      <div class="content-toolbar" id="toolbar" style="display:none;">
-        <div>
-          <div class="toolbar-title" id="toolbar-title">—</div>
-          <div class="toolbar-hint"  id="toolbar-hint"></div>
+    <!-- RESULT PANEL -->
+    <div class="result-section hidden" id="result-section">
+      <div class="result-toolbar">
+        <button type="button" class="btn-back-tiles" onclick="backToTiles()">← Functions</button>
+        <div class="result-title-wrap">
+          <div class="toolbar-title" id="result-title">—</div>
+          <div class="toolbar-hint"  id="result-hint"></div>
         </div>
         <div class="toolbar-spacer"></div>
-        <div class="row-badge" id="row-badge">—</div>
-        <button class="btn-export" onclick="exportCSV()">Export CSV</button>
-        <button class="btn-export-xlsx" id="btn-export-xlsx" onclick="exportXLSX()">Export XLSX + Related</button>
+        <div class="row-badge hidden" id="result-row-badge"></div>
+        <button type="button" class="btn-export hidden" id="btn-export-csv" onclick="exportResultCSV()">Export CSV</button>
       </div>
-
-      <!-- Filter bar: appears once columns are known -->
-      <div class="filter-bar" id="filter-bar">
-        <span class="filter-label">Filter</span>
-
-        <select id="filter-col" title="Column to filter on"></select>
-
-        <select id="filter-mode" title="Match type">
-          <option value="contains">Contains</option>
-          <option value="exact">Exact match</option>
-          <option value="starts">Starts with</option>
-        </select>
-
-        <input id="filter-val" type="text" placeholder="Enter value…" autocomplete="off">
-
-        <button class="btn-filter-search" onclick="applyFilter()">Search</button>
-        <button class="btn-filter-clear"  id="btn-clear" onclick="clearFilter()">Clear filter</button>
-        <span  class="filter-active-badge" id="filter-badge">FILTERED</span>
-      </div>
-
-      <!-- Data output -->
-      <div class="data-panel" id="data-panel">
-        <div class="placeholder">
-          <div class="placeholder-hex"><img src="./images/logo256.png" alt="Kongsberg Logo"></div>
-          <div class="placeholder-line1">Select a table</div>
-          <div class="placeholder-line2">Click any entry in the sidebar to load data</div>
-        </div>
-      </div>
-
-      <!-- Report panel (hidden until a report item is clicked) -->
-      <div class="report-panel" id="report-panel" style="display:none;">
-
-        <!-- Report toolbar -->
-        <div class="report-toolbar">
-          <div>
-            <div class="toolbar-title" id="report-title">—</div>
-            <div class="toolbar-hint"  id="report-hint"></div>
-          </div>
-          <div class="toolbar-spacer"></div>
-
-          <div class="date-range-wrap">
-            <label class="date-label">From</label>
-            <input type="date" id="rpt-from" class="date-input">
-            <label class="date-label">To</label>
-            <input type="date" id="rpt-to"   class="date-input">
-            <button class="btn-filter-search" onclick="runReport()">Run</button>
-          </div>
-        </div>
-
-        <!-- Sub-report selector (shown for grouped reports like Firewall) -->
-        <div class="report-subnav" id="report-subnav"></div>
-
-        <!-- Chart + pivot table / data table -->
-        <div class="report-body" id="report-body">
-          <div class="placeholder">
-            <div class="placeholder-hex"><img src="./images/logo256.png" alt="Kongsberg Logo"></div>
-            <div class="placeholder-line1">Select a date range and click Run</div>
-          </div>
-        </div>
-
-      </div>
-
+      <div class="result-body" id="result-body"></div>
     </div>
+
   </div>
-
-  <!-- CONTEXT MENU -->
-  <div id="ctx-menu">
-    <div class="ctx-header" id="ctx-label">Row Actions</div>
-    <div class="ctx-item" id="ctx-drill" onclick="openDrilldown()">
-      <span style="font-size:15px">↳</span> View related records
-    </div>
-    <div class="ctx-sep"></div>
-    <div class="ctx-item" onclick="copyRow()">
-      <span style="font-size:15px">⎘</span> Copy row as text
-    </div>
-    <div class="ctx-sep"></div>
-    <div class="ctx-item dismiss" onclick="closeCtx()">
-      <span style="font-size:13px">✕</span> Dismiss
-    </div>
-  </div>
-
-  <!-- DRILL-DOWN MODAL -->
-  <div id="dd-overlay">
-    <div class="dd-modal">
-      <div class="dd-header">
-        <div class="dd-header-text">
-          <div class="dd-title"    id="dd-title">Related Records</div>
-          <div class="dd-subtitle" id="dd-subtitle"></div>
-        </div>
-        <button class="dd-close" onclick="closeDrilldown()">✕</button>
-      </div>
-      <div class="dd-body" id="dd-body">
-        <div class="loading-wrap"><div class="spinner"></div>Loading…</div>
-      </div>
-    </div>
-  </div>
-
-
-
 
   <footer class="footer">
-    Kongsberg Enterprise Portal &nbsp;·&nbsp; Logistics &nbsp;·&nbsp; Authorised access only
+    Kongsberg Enterprise Portal &nbsp;·&nbsp; Logistics &nbsp;·&nbsp; SAP Integration &nbsp;·&nbsp; Authorised access only
   </footer>
 
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+  <script src="./js/logistics.js"></script>
 </body>
-
-<script src="./js/production.js"></script>
 </html>

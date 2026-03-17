@@ -5,6 +5,7 @@
   <title>Kongsberg // Warehouse</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="./css/warehouse.css">
 </head>
 <body>
@@ -23,7 +24,7 @@
     <div class="header-right">
       <div class="user-badge">
         <div class="user-dot"></div>
-        <span>Connected</span>
+        <span id="session-user">Connected</span>
       </div>
       <a href="/logout" class="btn-logout">Sign Out</a>
     </div>
@@ -32,31 +33,112 @@
   <!-- PAGE TITLE BAR -->
   <div class="page-title-bar">
     <div class="page-title-inner">
-      <h1 class="page-title">Warehouse</h1>
-      <p class="page-subtitle">Stock, inventory &amp; bin locations</p>
+      <h1 class="page-title">SAP Warehouse</h1>
+      <p class="page-subtitle">Live inventory &amp; storage data · Select a function to begin</p>
     </div>
   </div>
 
-  <!-- MAIN CONTENT -->
-  <main class="main-content">
+  <!-- SAP MAIN -->
+  <div class="sap-main">
 
-    <div class="placeholder-panel">
-      <div class="placeholder-icon">
-        <svg viewBox="0 0 28 28" fill="none"><path d="M2 12L14 4l12 8v14H2V12Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><rect x="10" y="16" width="8" height="10" rx="1" stroke="currentColor" stroke-width="1.6"/></svg>
+    <!-- TILE GRID -->
+    <div class="tile-section" id="tile-section">
+      <div class="tile-grid">
+
+        <div class="sap-tile sap-tile--live" data-fn="displayStock">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--live">LIVE</span>
+          <div class="tile-title">Display Stock</div>
+          <div class="tile-desc">Warehouse stock levels from LQUA via ZRFC_READ_TABLES</div>
+        </div>
+
+        <div class="sap-tile sap-tile--placeholder" data-fn="binContents">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--soon">SOON</span>
+          <div class="tile-title">Bin Contents</div>
+          <div class="tile-desc">Storage bin inventory and capacity overview</div>
+        </div>
+
+        <div class="sap-tile sap-tile--placeholder" data-fn="stockOverview">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--soon">SOON</span>
+          <div class="tile-title">Stock Overview</div>
+          <div class="tile-desc">Aggregated material stock levels across all storage locations</div>
+        </div>
+
+        <div class="sap-tile sap-tile--placeholder" data-fn="goodsReceipts">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--soon">SOON</span>
+          <div class="tile-title">Goods Receipts</div>
+          <div class="tile-desc">Incoming goods and inbound delivery confirmations</div>
+        </div>
+
+        <div class="sap-tile sap-tile--placeholder" data-fn="transferOrders">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--soon">SOON</span>
+          <div class="tile-title">Transfer Orders</div>
+          <div class="tile-desc">Warehouse movement and transfer order management</div>
+        </div>
+
+        <div class="sap-tile sap-tile--placeholder" data-fn="quants">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--soon">SOON</span>
+          <div class="tile-title">Quants</div>
+          <div class="tile-desc">Warehouse quant detail — batch-level storage unit data</div>
+        </div>
+
       </div>
-      <div class="placeholder-title">Warehouse — Coming Soon</div>
-      <div class="placeholder-body">
-        This area is reserved for the Warehouse department.<br>
-        Content, tools and reports will be added here.
-      </div>
-      <a href="./landing.html" class="btn-back">← Return to Hub</a>
     </div>
 
-  </main>
+    <!-- RESULT PANEL -->
+    <div class="result-section hidden" id="result-section">
+      <div class="result-toolbar">
+        <button type="button" class="btn-back-tiles" onclick="backToTiles()">← Functions</button>
+        <div class="result-title-wrap">
+          <div class="toolbar-title" id="result-title">—</div>
+          <div class="toolbar-hint"  id="result-hint"></div>
+        </div>
+        <div class="toolbar-spacer"></div>
+        <div class="row-badge hidden" id="result-row-badge"></div>
+        <button type="button" class="btn-export hidden" id="btn-export-csv" onclick="exportResultCSV()">Export CSV</button>
+      </div>
+      <div class="result-body" id="result-body">
+        <div class="sap-loading"><div class="spinner"></div>Connecting to SAP…</div>
+      </div>
+    </div>
+
+  </div>
 
   <footer class="footer">
-    Kongsberg Enterprise Portal &nbsp;·&nbsp; Warehouse &nbsp;·&nbsp; Authorised access only
+    Kongsberg Enterprise Portal &nbsp;·&nbsp; Warehouse &nbsp;·&nbsp; SAP Integration &nbsp;·&nbsp; Authorised access only
   </footer>
 
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+  <script src="./js/warehouse.js"></script>
 </body>
 </html>
