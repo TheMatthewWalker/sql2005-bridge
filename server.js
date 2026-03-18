@@ -190,52 +190,6 @@ function isAdmin(username) {
   return req => req.session?.user?.role === 'admin' || req.session?.user?.role === 'superadmin';
 }
 
-/* session-check, /login, and /logout are now handled by routes/auth.js
-
-// Login middleware
-export function requireLogin(req, res, next) {
-  if (req.session && req.session.user) return next();
-  res.redirect("/");
-}
-
-// Session check endpoint
-app.get('/session-check', (req, res) => {
-  const user = req.session.user;
-  res.json({ loggedIn: !!user });
-});
-
-// Login endpoint
-app.post("/login", (req, res) => {
-  const { username, password } = req.body;
-  const user = config.users.find(u => u.username === username && u.password === password);
-
-  if (user) {
-    req.session.user = { username: user.username, isAdmin: user.isAdmin};
-    res.redirect("/private/landing.html");
-  } else {
-    res.redirect("/");
-    res.status(500).send("Invalid username or password");
-  }
-});
-
-// Logout endpoint
-app.get("/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.redirect("/");
-  });
-});
-
-// Endpoint to check if user is admin (for raw SQL access)
-app.get("/rawsql", (req, res) => {
-  if (req.session.user && req.session.user.isAdmin) {
-    res.redirect("/private/rawsql.html");
-  } else {
-    res.status(403).send("Access denied");
-  }
-});
-
-*/
-
 // ── Audit helper — writes to dbo.PortalAuditLog (fire-and-forget) ─────────────
 async function auditQuery(eventType, username, detail, req) {
   try {
