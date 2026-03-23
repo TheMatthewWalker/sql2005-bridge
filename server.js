@@ -36,6 +36,7 @@ import exportXlsxRoutes        from './routes/exportxlsx.js';
 import reportRoutes            from './routes/reports.js';
 import sapRoutes               from "./routes/sap.js";
 import freightBookingRoutes    from './routes/freightbooking.js';
+import clearportExportRoutes  from './routes/clearportexport.js';
 
 import authRoutes              from './routes/auth.js';
 import adminRoutes             from './routes/useradmin.js';
@@ -99,6 +100,7 @@ app.use('/api/export-xlsx', requireLogin,       exportXlsxRoutes);
 app.use('/api/reports', requireLogin,           reportRoutes);
 app.use('/api/sap', requireLogin,               sapRoutes);
 app.use('/api/freight-booking', requireLogin,   freightBookingRoutes);
+app.use('/api/clearport',      requireLogin,   clearportExportRoutes);
 
 
 // Serve static front-end files
