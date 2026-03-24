@@ -21,10 +21,18 @@
 import express from 'express';
 import sql     from 'mssql';
 import { sqlConfig } from '../server.js';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
 
 const ROLE_LEVEL = { viewer: 1, editor: 2, admin: 3, superadmin: 4 };
+
+const approveUserLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,                  // max 20 approve requests per windowMs per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ── Audit helper ──────────────────────────────────────────────────────────────
 async function audit(eventType, actorUsername, detail, req) {
@@ -216,7 +224,7 @@ router.put('/users/:id', async (req, res) => {
 
 // ── POST /users/:id/approve ───────────────────────────────────────────────────
 // Activate a pending user, assign role and departments
-router.post('/users/:id/approve', async (req, res) => {
+router.post('/users/:id/approve', approveUserLimiter, async (req, res) => {
   const userID = parseInt(req.params.id, 10);
   if (!userID || isNaN(userID)) {
     return res.status(400).json({ success: false, error: 'Invalid user ID' });
