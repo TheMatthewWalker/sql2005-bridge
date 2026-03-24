@@ -92,9 +92,27 @@ function updateRemoveButtons() {
   });
 }
 
+// ── Session guard ─────────────────────────────────────────────────────────────
+async function checkSession() {
+  try {
+    const d = await fetch('/session-check').then(r => r.json());
+    if (!d.loggedIn) {
+      alert('Your session has expired. Please log in again.');
+      window.location.href = '/';
+      return false;
+    }
+    return true;
+  } catch {
+    alert('Unable to verify your session. Please log in again.');
+    window.location.href = '/';
+    return false;
+  }
+}
+
 // ── Run Material Costing ──────────────────────────────────────────────────────
 async function runMaterialCosting(e) {
   e.preventDefault();
+  if (!await checkSession()) return;
 
   const items = Array.from(document.querySelectorAll('#cf-tbody .cf-data-row')).map(tr => {
     const material  = tr.querySelector('[name=material]').value.trim();

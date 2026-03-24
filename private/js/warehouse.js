@@ -17,11 +17,13 @@ document.querySelectorAll('.sap-tile--live').forEach(tile => {
     const fn = tile.dataset.fn;
     if (fn === 'displayStock')   runDisplayStock();
     if (fn === 'transferOrders') showTransferForm();
+    if (fn === 'openPicksheets') runOpenPicksheets();
   });
 });
 
 // ── Display Stock ─────────────────────────────────────────────────────────────
 async function runDisplayStock() {
+  if (!await checkSession()) return;
   showResultPanel('Display Stock', 'Fetching warehouse stock from SAP LQUA…');
 
   try {
@@ -200,6 +202,7 @@ async function submitTransferForm(e) {
 
 // ── Stock Transfer — SAP call ─────────────────────────────────────────────────
 async function runStockTransfer(params) {
+  if (!await checkSession()) return false;
   const resultEl = document.getElementById('tf-result');
   try {
     const res = await fetch('/api/sap/execute-rfc', {
@@ -299,6 +302,23 @@ function showResultPanel(title, hint) {
     '<div class="sap-loading"><div class="spinner"></div>Connecting to SAP…</div>';
 }
 
+// ── Session guard ─────────────────────────────────────────────────────────────
+async function checkSession() {
+  try {
+    const d = await fetch('/session-check').then(r => r.json());
+    if (!d.loggedIn) {
+      alert('Your session has expired. Please log in again.');
+      window.location.href = '/';
+      return false;
+    }
+    return true;
+  } catch {
+    alert('Unable to verify your session. Please log in again.');
+    window.location.href = '/';
+    return false;
+  }
+}
+
 // ── Back to tiles ─────────────────────────────────────────────────────────────
 function backToTiles() {
   if (activeDT) { try { activeDT.destroy(); } catch (_) {} activeDT = null; }
@@ -343,7 +363,7 @@ function renderResultTable(records, columns) {
     },
   });
 
-  // ── Right-click context menu ────────────────────────────────────────────────
+  // ── Stock Right-click context menu ────────────────────────────────────────────────
   const ctxMenu     = document.getElementById('ctx-menu');
   const ctxTransfer = document.getElementById('ctx-transfer');
   let ctxRowData    = null;
@@ -477,6 +497,176 @@ async function submitTransferFormRow(e) {
 
   submitBtn.disabled = false;
   submitBtn.textContent = 'Create Transfer Order';
+}
+
+// ── Open Picksheets ───────────────────────────────────────────────────────────
+async function runOpenPicksheets() {
+  if (!await checkSession()) return;
+  showResultPanel('Open Picksheets', 'Loading open deliveries…');
+
+  try {
+    const res  = await fetch('/api/deliverymain/open-picksheets');
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to load picksheets');
+
+    const rows = json.data;
+    if (!rows.length) {
+      document.getElementById('result-body').innerHTML =
+        '<div class="sap-error">No open picksheets found.</div>';
+      return;
+    }
+
+    const badge = document.getElementById('result-row-badge');
+    badge.textContent = `${rows.length} open`;
+    badge.classList.remove('hidden');
+
+    renderPicksheets(rows);
+  } catch (err) {
+    document.getElementById('result-body').innerHTML =
+      `<div class="sap-error">✕ ${esc(err.message)}</div>`;
+  }
+}
+
+const BUCKETS = [
+  { key: 'priority',   label: 'Priority',       dot: 'priority', defaultOpen: true  },
+  { key: 'backlog',    label: 'Backlog',         dot: 'backlog',  defaultOpen: true  },
+  { key: 'today',      label: 'Today',           dot: 'today',    defaultOpen: true  },
+  { key: 'this-week',  label: 'This Week',       dot: 'week',     defaultOpen: true  },
+  { key: 'this-month', label: 'This Month',      dot: 'month',    defaultOpen: false },
+  { key: 'other',      label: 'Everything Else', dot: 'other',    defaultOpen: false },
+];
+
+function getDateBucket(dueDate) {
+  if (!dueDate) return 'other';
+  const now    = new Date();
+  const today  = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const due    = new Date(dueDate);
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+
+  if (dueDay < today) return 'backlog';
+  if (dueDay.getTime() === today.getTime()) return 'today';
+
+  const dow    = today.getDay() || 7;
+  const monday = new Date(today); monday.setDate(today.getDate() - dow + 1);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+
+  if (dueDay <= sunday) return 'this-week';
+  if (due.getFullYear() === now.getFullYear() && due.getMonth() === now.getMonth()) return 'this-month';
+  return 'other';
+}
+
+function renderPicksheets(rows) {
+  const bucketMap = {};
+  BUCKETS.forEach(b => { bucketMap[b.key] = []; });
+  rows.forEach(r => {
+    const key = r.deliveryPriority === 1 ? 'priority' : getDateBucket(r.dueDate);
+    bucketMap[key].push(r);
+  });
+
+  const html = BUCKETS
+    .filter(b => bucketMap[b.key].length > 0)
+    .map(b => {
+      const collapsed = b.defaultOpen ? '' : ' ps-section--collapsed';
+      const thead = `<tr><th>Delivery ID</th><th>Destination</th><th>Due Date</th><th>Service</th><th>Comment</th></tr>`;
+      const tbody = bucketMap[b.key].map(r => {
+        const due  = r.dueDate ? new Date(r.dueDate).toLocaleDateString('en-GB') : '—';
+        const flag = b.key === 'priority' ? '<span class="ps-priority-flag"></span>' : '';
+        return `<tr class="ps-row" data-id="${esc(String(r.deliveryID))}" data-dest="${esc(r.destinationName ?? '')}">
+          <td>${flag}${esc(String(r.deliveryID))}</td>
+          <td>${esc(r.destinationName ?? '—')}</td>
+          <td>${esc(due)}</td>
+          <td>${esc(r.deliveryService ?? '')}</td>
+          <td>${esc(r.picksheetComment ?? '')}</td>
+        </tr>`;
+      }).join('');
+      return `<div class="ps-section${collapsed}">
+        <div class="ps-section-header">
+          <span class="ps-section-dot ps-section-dot--${b.dot}"></span>
+          <span class="ps-section-title">${b.label}</span>
+          <span class="ps-section-count">${bucketMap[b.key].length}</span>
+          <span class="ps-chevron">▼</span>
+        </div>
+        <div class="ps-section-body">
+          <table class="ps-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>
+        </div>
+      </div>`;
+    }).join('');
+
+  document.getElementById('result-body').innerHTML = `<div class="ps-sections">${html}</div>`;
+
+  document.querySelectorAll('.ps-section-header').forEach(h => {
+    h.addEventListener('click', () => h.closest('.ps-section').classList.toggle('ps-section--collapsed'));
+  });
+
+  document.querySelectorAll('.ps-row').forEach(tr => {
+    tr.addEventListener('click', () => showPickedPallets(tr.dataset.id, tr.dataset.dest));
+  });
+}
+
+// ── Pallet popup modal ─────────────────────────────────────────────────────────
+async function showPickedPallets(deliveryId, destName) {
+  if (!await checkSession()) return;
+
+  const overlay = document.getElementById('ps-modal-overlay');
+  overlay.classList.remove('hidden');
+  overlay.innerHTML = `
+    <div class="ps-modal">
+      <div class="ps-modal-header">
+        <div>
+          <div class="ps-modal-title">Picked Pallets</div>
+          <div class="ps-modal-sub">Delivery #${esc(deliveryId)} · ${esc(destName)}</div>
+        </div>
+        <button class="ps-modal-close" onclick="closePickModal()">✕</button>
+      </div>
+      <div class="ps-modal-body">
+        <div class="sap-loading"><div class="spinner"></div>Fetching pallets…</div>
+      </div>
+      <div class="ps-modal-actions">
+        <button class="btn-submit" disabled title="Coming soon">+ Add Pallet</button>
+      </div>
+    </div>`;
+
+  try {
+    const res  = await fetch(`/api/deliverymain/${encodeURIComponent(deliveryId)}/pallets`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to load pallets');
+
+    const body    = overlay.querySelector('.ps-modal-body');
+    const pallets = json.data;
+
+    if (!pallets.length) {
+      body.innerHTML = '<div class="sap-error" style="padding:24px">No pallets picked for this delivery yet.</div>';
+      return;
+    }
+
+    const rows = pallets.map(p => `<tr>
+      <td>${esc(p.palletType ?? '')}</td>
+      <td class="${p.palletFinish ? 'ps-finish-yes' : 'ps-finish-no'}">${p.palletFinish ? 'Yes' : 'No'}</td>
+      <td>${esc(String(p.palletLength ?? ''))}</td>
+      <td>${esc(String(p.palletWidth  ?? ''))}</td>
+      <td>${esc(String(p.palletHeight ?? ''))}</td>
+      <td>${esc(String(p.grossWeight  ?? ''))}</td>
+      <td>${esc(p.palletLocation ?? '')}</td>
+      <td><button class="btn-edit-pallet" disabled title="Coming soon">Edit</button></td>
+    </tr>`).join('');
+
+    body.innerHTML = `
+      <table class="ps-pallet-table">
+        <thead><tr>
+          <th>Type</th><th>Finished</th><th>Length</th><th>Width</th>
+          <th>Height</th><th>Gross Wt.</th><th>Location</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+
+  } catch (err) {
+    overlay.querySelector('.ps-modal-body').innerHTML =
+      `<div class="sap-error" style="padding:24px">✕ ${esc(err.message)}</div>`;
+  }
+}
+
+function closePickModal() {
+  document.getElementById('ps-modal-overlay').classList.add('hidden');
 }
 
 // ── CSV export ────────────────────────────────────────────────────────────────

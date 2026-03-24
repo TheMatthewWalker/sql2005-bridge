@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.DeliveryMain');
+            .query('SELECT * FROM Logistics.dbo.DeliveryMain');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/id/:deliveryId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('deliveryId', sql.BigInt, req.params.deliveryId)
-            .query('SELECT * FROM dbo.DeliveryMain WHERE deliveryID = @deliveryId');
+            .query('SELECT * FROM Logistics.dbo.DeliveryMain WHERE deliveryID = @deliveryId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -36,7 +36,7 @@ router.get('/customer/:customerId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('customerId', sql.BigInt, req.params.customerId)
-            .query('SELECT * FROM dbo.DeliveryMain WHERE customerID = @customerId');
+            .query('SELECT * FROM Logistics.dbo.DeliveryMain WHERE customerID = @customerId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -49,7 +49,7 @@ router.get('/operator/:operatorName', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('operatorName', sql.NVarChar, req.params.operatorName)
-            .query('SELECT * FROM dbo.DeliveryMain WHERE operatorName = @operatorName');
+            .query('SELECT * FROM Logistics.dbo.DeliveryMain WHERE operatorName = @operatorName');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -64,7 +64,7 @@ router.get('/daterange', async (req, res) => {
         const result = await pool.request()
             .input('dateFrom', sql.DateTime, new Date(dateFrom))
             .input('dateTo', sql.DateTime, new Date(dateTo))
-            .query('SELECT * FROM dbo.DeliveryMain WHERE dueDate BETWEEN @dateFrom AND @dateTo');
+            .query('SELECT * FROM Logistics.dbo.DeliveryMain WHERE dueDate BETWEEN @dateFrom AND @dateTo');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -96,7 +96,7 @@ router.post('/', async (req, res) => {
             .input('picksheetComment', sql.NVarChar, picksheetComment)
             .input('deliveryCancelled', sql.Bit, deliveryCancelled)
             .input('deliveryPriority', sql.Int, deliveryPriority)
-            .query(`INSERT INTO dbo.DeliveryMain
+            .query(`INSERT INTO Logistics.dbo.DeliveryMain
                 (deliveryID, customerID, dueDate, completionDate, completionStatus,
                  operatorName, supervisorName, netWeight, grossWeight, palletCount,
                  deliveryVolume, picksheetComment, deliveryCancelled, deliveryPriority)
@@ -108,6 +108,40 @@ router.post('/', async (req, res) => {
         res.status(201).json({ message: 'Record created successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+// ── Open Picksheets — active deliveries with destination name ──
+router.get('/open-picksheets', async (req, res) => {
+    try {
+        const pool = await getPool();
+        const result = await pool.request()
+            .query(`SELECT dm.deliveryID, d.destinationName, dm.dueDate,
+                           dm.deliveryService, dm.picksheetComment, dm.deliveryPriority
+                    FROM Logistics.dbo.DeliveryMain dm
+                    LEFT JOIN Logistics.dbo.Destinations d ON dm.customerID = d.destinationID
+                    WHERE dm.completionStatus = 0 AND dm.deliveryCancelled = 0
+                    ORDER BY dm.deliveryPriority DESC, dm.dueDate ASC`);
+        res.json({ success: true, data: result.recordset });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ── Pallets picked for a delivery (DeliveryMain → DeliveryLink → PalletMain) ──
+router.get('/:deliveryId/pallets', async (req, res) => {
+    try {
+        const pool = await getPool();
+        const result = await pool.request()
+            .input('deliveryId', sql.BigInt, req.params.deliveryId)
+            .query(`SELECT pm.palletType, pm.palletFinish, pm.palletLength,
+                           pm.palletWidth, pm.palletHeight, pm.grossWeight, pm.palletLocation
+                    FROM Logistics.dbo.PalletMain pm
+                    INNER JOIN Logistics.dbo.DeliveryLink dl ON pm.palletID = dl.palletID
+                    WHERE dl.deliveryID = @deliveryId AND pm.palletRemoved = 0`);
+        res.json({ success: true, data: result.recordset });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 

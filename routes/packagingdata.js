@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.PackagingData');
+            .query('SELECT * FROM Logistics.dbo.PackagingData');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/id/:packId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('packId', sql.NVarChar, req.params.packId)
-            .query('SELECT * FROM dbo.PackagingData WHERE packID = @packId');
+            .query('SELECT * FROM Logistics.dbo.PackagingData WHERE packID = @packId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -44,7 +44,7 @@ router.post('/', async (req, res) => {
             .input('packLength', sql.Int, packLength)
             .input('packWidth', sql.Int, packWidth)
             .input('packHeight', sql.Int, packHeight)
-            .query(`INSERT INTO dbo.PackagingData (packID, packMaterial, packDescription, packWeight, packLength, packWidth, packHeight)
+            .query(`INSERT INTO Logistics.dbo.PackagingData (packID, packMaterial, packDescription, packWeight, packLength, packWidth, packHeight)
                     VALUES (@packID, @packMaterial, @packDescription, @packWeight, @packLength, @packWidth, @packHeight)`);
 
         res.status(201).json({ message: 'Record created successfully' });

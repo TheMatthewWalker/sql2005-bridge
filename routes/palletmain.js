@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.PalletMain');
+            .query('SELECT * FROM Logistics.dbo.PalletMain');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/id/:palletId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('palletId', sql.BigInt, req.params.palletId)
-            .query('SELECT * FROM dbo.PalletMain WHERE palletID = @palletId');
+            .query('SELECT * FROM Logistics.dbo.PalletMain WHERE palletID = @palletId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -36,7 +36,7 @@ router.get('/category/:category', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('category', sql.NVarChar, req.params.category)
-            .query('SELECT * FROM dbo.PalletMain WHERE palletCategory = @category');
+            .query('SELECT * FROM Logistics.dbo.PalletMain WHERE palletCategory = @category');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -49,7 +49,7 @@ router.get('/location/:location', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('location', sql.NVarChar, req.params.location)
-            .query('SELECT * FROM dbo.PalletMain WHERE palletLocation = @location');
+            .query('SELECT * FROM Logistics.dbo.PalletMain WHERE palletLocation = @location');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -82,7 +82,7 @@ router.post('/', async (req, res) => {
             .input('palletLocation', sql.NVarChar, palletLocation)
             .input('palletCreationDate', sql.DateTime, palletCreationDate ? new Date(palletCreationDate) : null)
             .input('palletFinishDate', sql.DateTime, palletFinishDate ? new Date(palletFinishDate) : null)
-            .query(`INSERT INTO dbo.PalletMain
+            .query(`INSERT INTO Logistics.dbo.PalletMain
                 (palletType, palletFinish, packagingWeight, grossWeight,
                  palletVolume, palletLength, palletWidth, palletHeight,
                  palletRemoved, palletCategory, palletLocation, palletCreationDate, palletFinishDate)

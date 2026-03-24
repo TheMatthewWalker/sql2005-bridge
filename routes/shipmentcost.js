@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.ShipmentCost');
+            .query('SELECT * FROM Logistics.dbo.ShipmentCost');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/id/:costId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('costId', sql.BigInt, req.params.costId)
-            .query('SELECT * FROM dbo.ShipmentCost WHERE costID = @costId');
+            .query('SELECT * FROM Logistics.dbo.ShipmentCost WHERE costID = @costId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -36,7 +36,7 @@ router.get('/shipment/:shipmentId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('shipmentId', sql.BigInt, req.params.shipmentId)
-            .query('SELECT * FROM dbo.ShipmentCost WHERE shipmentID = @shipmentId');
+            .query('SELECT * FROM Logistics.dbo.ShipmentCost WHERE shipmentID = @shipmentId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -49,7 +49,7 @@ router.get('/costtype/:costType', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('costType', sql.NVarChar, req.params.costType)
-            .query('SELECT * FROM dbo.ShipmentCost WHERE costType = @costType');
+            .query('SELECT * FROM Logistics.dbo.ShipmentCost WHERE costType = @costType');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -76,7 +76,7 @@ router.post('/', async (req, res) => {
             .input('actualCost', sql.Decimal, actualCost)
             .input('migoStatus', sql.Bit, migoStatus)
             .input('materialDocument', sql.NVarChar, materialDocument)
-            .query(`INSERT INTO dbo.ShipmentCost
+            .query(`INSERT INTO Logistics.dbo.ShipmentCost
                 (shipmentID, costType, costElement, costCenter,
                  expectedCost, actualCost, migoStatus, materialDocument)
                 VALUES

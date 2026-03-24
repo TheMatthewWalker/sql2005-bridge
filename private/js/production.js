@@ -17,6 +17,7 @@ const DRILLDOWN = {
     { table: 'Coils',   pkCol: 'Drum',    fkCol: 'Batch'  },
     // { table: 'Trace',   pkCol: 'Drum',    fkCol: 'Batch'  },
     { table: 'Waste',   pkCol: 'Drum',    fkCol: 'Batch'  },
+    { table: 'Messages', pkCol: 'Drum',    fkCol: 'Batch'  },
   ],
   Ewald: [
     { table: 'EwaldBoxes',     pkCol: 'ID', fkCol: 'EwaldID' },

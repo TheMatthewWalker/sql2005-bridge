@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.PalletPackages');
+            .query('SELECT * FROM Logistics.dbo.PalletPackages');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/id/:palletItemId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('palletItemId', sql.BigInt, req.params.palletItemId)
-            .query('SELECT * FROM dbo.PalletPackages WHERE palletItemID = @palletItemId');
+            .query('SELECT * FROM Logistics.dbo.PalletPackages WHERE palletItemID = @palletItemId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -36,7 +36,7 @@ router.get('/pallet/:palletId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('palletId', sql.BigInt, req.params.palletId)
-            .query('SELECT * FROM dbo.PalletPackages WHERE palletID = @palletId');
+            .query('SELECT * FROM Logistics.dbo.PalletPackages WHERE palletID = @palletId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -49,7 +49,7 @@ router.get('/sapdelivery/:sapDelivery', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('sapDelivery', sql.NVarChar, req.params.sapDelivery)
-            .query('SELECT * FROM dbo.PalletPackages WHERE sapDelivery = @sapDelivery');
+            .query('SELECT * FROM Logistics.dbo.PalletPackages WHERE sapDelivery = @sapDelivery');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -62,7 +62,7 @@ router.get('/sapmaterial/:sapMaterial', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('sapMaterial', sql.NVarChar, req.params.sapMaterial)
-            .query('SELECT * FROM dbo.PalletPackages WHERE sapMaterial = @sapMaterial');
+            .query('SELECT * FROM Logistics.dbo.PalletPackages WHERE sapMaterial = @sapMaterial');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -93,7 +93,7 @@ router.post('/', async (req, res) => {
             .input('sapCustomer', sql.NVarChar, sapCustomer)
             .input('sapCustomerMaterial', sql.NVarChar, sapCustomerMaterial)
             .input('scanTime', sql.DateTime, scanTime ? new Date(scanTime) : null)
-            .query(`INSERT INTO dbo.PalletPackages
+            .query(`INSERT INTO Logistics.dbo.PalletPackages
                 (palletID, packagingID, palletLayer, sapMaterial,
                  sapQuantity, sapBatch, sapDelivery, sapDeliveryItem,
                  sapCustomer, sapCustomerMaterial, scanTime)

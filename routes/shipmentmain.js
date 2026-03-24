@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.ShipmentMain');
+            .query('SELECT * FROM Logistics.dbo.ShipmentMain');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/id/:shipmentId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('shipmentId', sql.BigInt, req.params.shipmentId)
-            .query('SELECT * FROM dbo.ShipmentMain WHERE shipmentID = @shipmentId');
+            .query('SELECT * FROM Logistics.dbo.ShipmentMain WHERE shipmentID = @shipmentId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -36,7 +36,7 @@ router.get('/forwarder/:forwarderId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('forwarderId', sql.BigInt, req.params.forwarderId)
-            .query('SELECT * FROM dbo.ShipmentMain WHERE forwarderID = @forwarderId');
+            .query('SELECT * FROM Logistics.dbo.ShipmentMain WHERE forwarderID = @forwarderId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -49,7 +49,7 @@ router.get('/destination/:destinationId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('destinationId', sql.BigInt, req.params.destinationId)
-            .query('SELECT * FROM dbo.ShipmentMain WHERE destinationID = @destinationId');
+            .query('SELECT * FROM Logistics.dbo.ShipmentMain WHERE destinationID = @destinationId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -64,7 +64,7 @@ router.get('/daterange', async (req, res) => {
         const result = await pool.request()
             .input('dateFrom', sql.DateTime, new Date(dateFrom))
             .input('dateTo', sql.DateTime, new Date(dateTo))
-            .query('SELECT * FROM dbo.ShipmentMain WHERE plannedCollection BETWEEN @dateFrom AND @dateTo');
+            .query('SELECT * FROM Logistics.dbo.ShipmentMain WHERE plannedCollection BETWEEN @dateFrom AND @dateTo');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -110,7 +110,7 @@ router.post('/', async (req, res) => {
             .input('customsRequired', sql.Bit, customsRequired)
             .input('customsComplete', sql.Bit, customsComplete)
             .input('shipmentCancelled', sql.Bit, shipmentCancelled)
-            .query(`INSERT INTO dbo.ShipmentMain
+            .query(`INSERT INTO Logistics.dbo.ShipmentMain
                 (originID, originName, originStreet, originCity, originPostCode, originCountry,
                  destinationID, destinationName, destinationStreet, destinationCity, destinationPostCode, destinationCountry,
                  netWeight, grossWeight, palletCount, shipmentVolume, plannedCollection, actualCollection,

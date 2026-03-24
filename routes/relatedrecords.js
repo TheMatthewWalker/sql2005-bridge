@@ -19,7 +19,7 @@ const router = express.Router();
 // ── Allowlist of tables that may be queried via drill-down ──────────────────
 const ALLOWED_TABLES = new Set([
   // Production sub-tables
-  'Coils', 'Trace', 'Waste',
+  'Coils', 'Trace', 'Waste', 'Messages',
   'MixingMatDocs', 'MixingMessages', 'MixingWaste',
   'ExtrusionMessages', 'ExtrusionTrace', 'ExtrusionWaste',
   'ConvoMessages', 'ConvoTrace', 'ConvoWaste',

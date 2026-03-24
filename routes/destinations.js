@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.Destinations');
+            .query('SELECT * FROM Logistics.dbo.Destinations');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/id/:destinationId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('destinationId', sql.BigInt, req.params.destinationId)
-            .query('SELECT * FROM dbo.Destinations WHERE destinationID = @destinationId');
+            .query('SELECT * FROM Logistics.dbo.Destinations WHERE destinationID = @destinationId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -36,7 +36,7 @@ router.get('/country/:country', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('country', sql.NVarChar, req.params.country)
-            .query('SELECT * FROM dbo.Destinations WHERE destinationCountry = @country');
+            .query('SELECT * FROM Logistics.dbo.Destinations WHERE destinationCountry = @country');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -49,7 +49,7 @@ router.get('/zone/:zone', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('zone', sql.NVarChar, req.params.zone)
-            .query('SELECT * FROM dbo.Destinations WHERE destinationZone = @zone');
+            .query('SELECT * FROM Logistics.dbo.Destinations WHERE destinationZone = @zone');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -77,7 +77,7 @@ router.post('/', async (req, res) => {
             .input('destinationComment', sql.NVarChar, destinationComment)
             .input('destinationEmail', sql.NVarChar, destinationEmail)
             .input('destinationZone', sql.NVarChar, destinationZone)
-            .query(`INSERT INTO dbo.Destinations
+            .query(`INSERT INTO Logistics.dbo.Destinations
                 (destinationID, destinationName, destinationStreet, destinationCity,
                  destinationPostCode, destinationCountry, defaultIncoterms,
                  destinationComment, destinationEmail, destinationZone)

@@ -4,6 +4,43 @@
 let activeDT      = null;
 let currentResult = [];
 
+
+const DRILLDOWN = {
+  ShipmentMain: [
+    { table: 'Shipment',   pkCol: 'Drum',    fkCol: 'Batch'  },
+    // { table: 'Trace',   pkCol: 'Drum',    fkCol: 'Batch'  },
+    { table: 'Waste',   pkCol: 'Drum',    fkCol: 'Batch'  },
+    { table: 'Messages', pkCol: 'Drum',    fkCol: 'Batch'  },
+  ],
+  Ewald: [
+    { table: 'EwaldBoxes',     pkCol: 'ID', fkCol: 'EwaldID' },
+    { table: 'EwaldMessages',  pkCol: 'ID', fkCol: 'Batch'   },
+    //{ table: 'EwaldScrapDocs', pkCol: 'ID', fkCol: 'EwaldID' },
+    { table: 'EwaldWaste',     pkCol: 'ID', fkCol: 'EwaldID' },
+  ],
+  Mixing: [
+    { table: 'MixingMatDocs',  pkCol: 'MixingID', fkCol: 'MixingBatch' },
+    { table: 'MixingMessages', pkCol: 'MixingID', fkCol: 'Batch'       },
+    // { table: 'MixingWaste',    pkCol: 'MixingID', fkCol: 'MixingID'    },
+  ],
+  Extrusion: [
+    { table: 'ExtrusionMessages', pkCol: 'ExtBatch', fkCol: 'Batch'    },
+    { table: 'ExtrusionTrace',    pkCol: 'ExtBatch', fkCol: 'ExtBatch' },
+    { table: 'ExtrusionWaste',    pkCol: 'ExtBatch', fkCol: 'ExtBatch' },
+  ],
+  Convo: [
+    { table: 'ConvoMessages', pkCol: 'ConvoID', fkCol: 'Batch'      },
+    { table: 'ConvoTrace',    pkCol: 'ConvoID', fkCol: 'ConvoID'    },
+    { table: 'ConvoWaste',    pkCol: 'ConvoID', fkCol: 'convobatch' },
+  ],
+  Firewall: [
+    { table: 'FirewallMessages', pkCol: 'SAPBatch', fkCol: 'SAPBatch' },
+  ],
+  Staging: [
+    { table: 'StagingItems', pkCol: 'StagingID', fkCol: 'StagingID' },
+  ],
+};
+
 // ── Session check on load ─────────────────────────────────────────────────────
 (async () => {
   const d = await fetch('/session-check').then(r => r.json());

@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.ForwarderApproval');
+            .query('SELECT * FROM Logistics.dbo.ForwarderApproval');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/id/:forwarderId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('forwarderId', sql.BigInt, req.params.forwarderId)
-            .query('SELECT * FROM dbo.ForwarderApproval WHERE forwarderID = @forwarderId');
+            .query('SELECT * FROM Logistics.dbo.ForwarderApproval WHERE forwarderID = @forwarderId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -40,7 +40,7 @@ router.post('/', async (req, res) => {
             .input('forwarderID', sql.BigInt, forwarderID)
             .input('ratesAgreed', sql.Bit, ratesAgreed)
             .input('usageAgreed', sql.Bit, usageAgreed)
-            .query(`INSERT INTO dbo.ForwarderApproval (forwarderID, ratesAgreed, usageAgreed)
+            .query(`INSERT INTO Logistics.dbo.ForwarderApproval (forwarderID, ratesAgreed, usageAgreed)
                     VALUES (@forwarderID, @ratesAgreed, @usageAgreed)`);
 
         res.status(201).json({ message: 'Record created successfully' });

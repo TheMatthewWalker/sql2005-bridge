@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.CostCenters');
+            .query('SELECT * FROM Logistics.dbo.CostCenters');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/id/:centerId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('centerId', sql.BigInt, req.params.centerId)
-            .query('SELECT * FROM dbo.CostCenters WHERE centerID = @centerId');
+            .query('SELECT * FROM Logistics.dbo.CostCenters WHERE centerID = @centerId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
         await pool.request()
             .input('centerID', sql.BigInt, centerID)
             .input('centerDescription', sql.NVarChar, centerDescription)
-            .query(`INSERT INTO dbo.CostCenters (centerID, centerDescription)
+            .query(`INSERT INTO Logistics.dbo.CostCenters (centerID, centerDescription)
                     VALUES (@centerID, @centerDescription)`);
 
         res.status(201).json({ message: 'Record created successfully' });

@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.RatesKN');
+            .query('SELECT * FROM Logistics.dbo.RatesKN');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/country/:countryCode', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('countryCode', sql.NVarChar, req.params.countryCode)
-            .query('SELECT * FROM dbo.RatesKN WHERE countryCode = @countryCode');
+            .query('SELECT * FROM Logistics.dbo.RatesKN WHERE countryCode = @countryCode');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -36,7 +36,7 @@ router.get('/postalcode/:postalCode', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('postalCode', sql.NVarChar, req.params.postalCode)
-            .query('SELECT * FROM dbo.RatesKN WHERE postalCode = @postalCode');
+            .query('SELECT * FROM Logistics.dbo.RatesKN WHERE postalCode = @postalCode');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -56,7 +56,7 @@ router.post('/', async (req, res) => {
             .input('maxWeight', sql.Int, maxWeight)
             .input('agreedRate', sql.Decimal, agreedRate)
             .input('transitTime', sql.Int, transitTime)
-            .query(`INSERT INTO dbo.RatesKN (countryCode, postalCode, minWeight, maxWeight, agreedRate, transitTime)
+            .query(`INSERT INTO Logistics.dbo.RatesKN (countryCode, postalCode, minWeight, maxWeight, agreedRate, transitTime)
                     VALUES (@countryCode, @postalCode, @minWeight, @maxWeight, @agreedRate, @transitTime)`);
 
         res.status(201).json({ message: 'Record created successfully' });

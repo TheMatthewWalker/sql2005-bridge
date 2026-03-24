@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.PalletValidation');
+            .query('SELECT * FROM Logistics.dbo.PalletValidation');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/pallet/:palletId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('palletId', sql.NVarChar, req.params.palletId)
-            .query('SELECT * FROM dbo.PalletValidation WHERE palletID = @palletId');
+            .query('SELECT * FROM Logistics.dbo.PalletValidation WHERE palletID = @palletId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -36,7 +36,7 @@ router.get('/packaging/:packagingId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('packagingId', sql.NVarChar, req.params.packagingId)
-            .query('SELECT * FROM dbo.PalletValidation WHERE packagingID = @packagingId');
+            .query('SELECT * FROM Logistics.dbo.PalletValidation WHERE packagingID = @packagingId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -52,7 +52,7 @@ router.post('/', async (req, res) => {
         await pool.request()
             .input('palletID', sql.NVarChar, palletID)
             .input('packagingID', sql.NVarChar, packagingID)
-            .query(`INSERT INTO dbo.PalletValidation (palletID, packagingID)
+            .query(`INSERT INTO Logistics.dbo.PalletValidation (palletID, packagingID)
                     VALUES (@palletID, @packagingID)`);
 
         res.status(201).json({ message: 'Record created successfully' });

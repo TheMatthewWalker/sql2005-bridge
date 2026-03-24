@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request()
-            .query('SELECT * FROM dbo.DeliveryLink');
+            .query('SELECT * FROM Logistics.dbo.DeliveryLink');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,7 +23,7 @@ router.get('/delivery/:deliveryId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('deliveryId', sql.BigInt, req.params.deliveryId)
-            .query('SELECT * FROM dbo.DeliveryLink WHERE deliveryID = @deliveryId');
+            .query('SELECT * FROM Logistics.dbo.DeliveryLink WHERE deliveryID = @deliveryId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -36,7 +36,7 @@ router.get('/pallet/:palletId', async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('palletId', sql.BigInt, req.params.palletId)
-            .query('SELECT * FROM dbo.DeliveryLink WHERE palletID = @palletId');
+            .query('SELECT * FROM Logistics.dbo.DeliveryLink WHERE palletID = @palletId');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -52,7 +52,7 @@ router.post('/', async (req, res) => {
         await pool.request()
             .input('deliveryID', sql.BigInt, deliveryID)
             .input('palletID', sql.BigInt, palletID)
-            .query(`INSERT INTO dbo.DeliveryLink (deliveryID, palletID)
+            .query(`INSERT INTO Logistics.dbo.DeliveryLink (deliveryID, palletID)
                     VALUES (@deliveryID, @palletID)`);
 
         res.status(201).json({ message: 'Record created successfully' });
