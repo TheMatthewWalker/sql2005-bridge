@@ -841,7 +841,7 @@ function renderReport(rows, meta, dateFrom, dateTo, chartRows, chartRows1, chart
           </tbody>
           <tfoot>
             <tr>
-              <td><strong>${isTimeSeries ? `${dateFrom} → ${dateTo}` : 'Total'}</strong></td>
+              <td><strong>${isTimeSeries ? `${esc(dateFrom)} → ${esc(dateTo)}` : 'Total'}</strong></td>
               <td class="num"><strong>${isTimeSeries ? (total / rows.length).toFixed(2) + ' avg' : formatNum(total)}</strong></td>
               <td class="num"><strong>${isTimeSeries ? '' : '100%'}</strong></td>
             </tr>
