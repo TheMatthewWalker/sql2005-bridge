@@ -5,12 +5,11 @@ import express from 'express';
 import fs      from 'fs';
 import { sapConfig, sapServerSecret } from '../server.js';
 
-// SAP server uses a self-signed certificate — configure trusted certificate instead of bypassing verification
-const sapCert  = fs.readFileSync(new URL('../certs/sap-server-cert.pem', import.meta.url));
-const sapAgent = new https.Agent({
-    ca: sapCert,
-    rejectUnauthorized: true
-});
+// Use a pinned certificate when connecting over HTTPS; fall back to no custom agent for HTTP (dev).
+const certPath = new URL('../certs/sap-server-cert.pem', import.meta.url);
+const sapAgent = fs.existsSync(certPath)
+    ? new https.Agent({ ca: fs.readFileSync(certPath), rejectUnauthorized: true })
+    : null;
 
 // Sign a short-lived service token for each SapServer request.
 // Payload matches what SapServer expects: userId (int), issuer, audience.
