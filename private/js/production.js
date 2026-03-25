@@ -323,6 +323,25 @@ function hiddenInput(name, value) {
   return el;
 }
 
+function exportReportCSV() {
+  if (!lastReportRows || !lastReportMeta?.columns) return;
+  const cols = lastReportMeta.columns;
+  const csvRow = row => cols.map(c => {
+    const v = row[c] != null ? String(row[c]) : '';
+    return v.includes(',') || v.includes('"') || v.includes('\n')
+      ? `"${v.replace(/"/g, '""')}"` : v;
+  }).join(',');
+
+  const csv  = [cols.join(','), ...lastReportRows.map(csvRow)].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${currentReport || 'report'}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── XLSX export — main table + all related sub-tables as separate sheets ──────
 async function exportXLSX() {
   if (!currentTable) return;
@@ -425,9 +444,11 @@ function emptyBlock() {
 // REPORTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-let currentReport = null;   // name of the active report
-let reportChart   = null;   // Chart.js instance — destroyed before each redraw
-let reportDT      = null;   // DataTable instance for table-type reports
+let currentReport    = null;   // name of the active report
+let reportChart      = null;   // Chart.js instance — destroyed before each redraw
+let reportDT         = null;   // DataTable instance for table-type reports
+let lastReportRows   = null;   // cached rows from last successful report run
+let lastReportMeta   = null;   // cached meta from last successful report run
 
 // ── Grouped reports — sidebar key maps to one or more sub-report keys ─────────
 // Add new sub-reports here as they are created in routes/reports.js
@@ -521,6 +542,9 @@ function resetReportBody() {
   if (reportChart3) { reportChart3.destroy(); reportChart3 = null; }
   if (reportChart4) { reportChart4.destroy(); reportChart4 = null; }
   if (reportDT)     { try { reportDT.destroy(); } catch (_) {} reportDT = null; }
+  lastReportRows = null; lastReportMeta = null;
+  const exportBtn = document.getElementById('btn-report-export-csv');
+  if (exportBtn) exportBtn.style.display = 'none';
   document.getElementById('report-body').innerHTML = `
     <div class="placeholder">
       <div class="placeholder-hex"><img src="./images/logo256.png" alt="Kongsberg Logo"></div>
@@ -585,6 +609,12 @@ let reportChart4 = null;  // fourth Chart.js instance for quad-chart type
 
 function renderReport(rows, meta, dateFrom, dateTo, chartRows, chartRows1, chartRows2, chartData) {
   const body = document.getElementById('report-body');
+
+  // Cache rows/meta for CSV export
+  lastReportRows = rows  || [];
+  lastReportMeta = meta  || {};
+  const exportBtn = document.getElementById('btn-report-export-csv');
+  if (exportBtn) exportBtn.style.display = (lastReportRows.length && lastReportMeta.columns) ? 'inline-block' : 'none';
 
   // Destroy old chart instances before replacing canvases
   if (reportChart)  { reportChart.destroy();  reportChart  = null; }

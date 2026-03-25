@@ -47,12 +47,12 @@ router.post("/execute-rfc", async (req, res) => {
     if (!functionName)
         return res.status(400).json({ success: false, error: "Missing functionName" });
 
-    console.group(`[SAP] execute-rfc → ${functionName}`);
-    console.log('Import parameters:', importParameters);
-    if (Object.keys(inputTables).length)      console.log('Input tables:',       inputTables);
-    if (Object.keys(inputTablesItems).length) console.log('Input tables items:', inputTablesItems);
-    if (exportParameters.length)              console.log('Export parameters:',  exportParameters);
-    if (Object.keys(outputTables).length)     console.log('Output tables:',      outputTables);
+    //console.group(`[SAP] execute-rfc → ${functionName}`);
+    //console.log('Import parameters:', importParameters);
+    //if (Object.keys(inputTables).length)      console.log('Input tables:',       inputTables);
+    //if (Object.keys(inputTablesItems).length) console.log('Input tables items:', inputTablesItems);
+    //if (exportParameters.length)              console.log('Export parameters:',  exportParameters);
+    //if (Object.keys(outputTables).length)     console.log('Output tables:',      outputTables);
 
     try {
         const response = await axios.post(
@@ -61,9 +61,9 @@ router.post("/execute-rfc", async (req, res) => {
             { timeout: 30000, httpsAgent: sapAgent, headers: { Authorization: `Bearer ${makeSapToken()}` } }
         );
 
-        console.log('HTTP status:', response.status);
-        console.log('Response:', JSON.stringify(response.data, null, 2));
-        console.groupEnd();
+        //console.log('HTTP status:', response.status);
+        //console.log('Response:', JSON.stringify(response.data, null, 2));
+        //console.groupEnd();
         res.json({ success: true, data: response.data });
     } catch (err) {
         const status  = err.response?.status  ?? 500;
@@ -89,10 +89,6 @@ router.post("/cost-sheet", async (req, res) => {
     if (!Array.isArray(items))
         return res.status(400).json({ success: false, error: "Missing items" });
 
-    console.group('[SAP] cost-sheet');
-    console.log('Date:', date);
-    console.log('Items:', items);
-
     try {
         const response = await axios.post(
             `${sapConfig.url}/api/costing/cost-sheet`,
@@ -105,11 +101,74 @@ router.post("/cost-sheet", async (req, res) => {
             throw new Error(body.error ?? 'SapServer returned success=false');
 
         const rows = body.data;
-        console.log('HTTP status:', response.status);
-        console.log('Rows returned:', Array.isArray(rows) ? rows.length : '(not an array)');
-        if (Array.isArray(rows) && rows.length) console.log('First row:', rows[0]);
-        console.groupEnd();
         res.json({ success: true, data: rows });
+
+    } catch (err) {
+        const status  = err.response?.status  ?? 500;
+        const message = err.response?.data?.error ?? err.message;
+        console.error('Error:', status, message);
+        if (err.response?.data) console.error('Response body:', JSON.stringify(err.response.data, null, 2));
+        console.groupEnd();
+        res.status(status).json({ success: false, error: message });
+    }
+});
+
+
+// ---------------------------------------------------------------------------
+// POST /api/sap/warehouse/consignment-mb1b  (mounted at /api/sap in server.js)
+//
+// Proxies to SapServer's /api/warehouse/consignment-mb1b endpoint.
+// ---------------------------------------------------------------------------
+router.post("/warehouse/consignment-mb1b", async (req, res) => {
+    const params = req.body;
+
+    try {
+        const response = await axios.post(
+            `${sapConfig.url}/api/warehouse/consignment-mb1b`,
+            params,
+            { timeout: 60000, httpsAgent: sapAgent, headers: { Authorization: `Bearer ${makeSapToken()}` } }
+        );
+
+        const body = response.data;
+        if (!body.success)
+            throw new Error(body.error ?? 'SapServer returned success=false');
+
+        const rows = body.data;
+        res.json({ success: true, data: rows });
+
+    } catch (err) {
+        const status  = err.response?.status  ?? 500;
+        const message = err.response?.data?.error ?? err.message;
+        console.error('Error:', status, message);
+        if (err.response?.data) console.error('Response body:', JSON.stringify(err.response.data, null, 2));
+        console.groupEnd();
+        res.status(status).json({ success: false, error: message });
+    }
+});
+
+
+// ---------------------------------------------------------------------------
+// POST /api/sap/warehouse/transfer-order  (mounted at /api/sap in server.js)
+//
+// Proxies to SapServer's /api/warehouse/transfer-order endpoint.
+// ---------------------------------------------------------------------------
+router.post("/warehouse/transfer-order", async (req, res) => {
+    const params = req.body;
+
+    try {
+        const response = await axios.post(
+            `${sapConfig.url}/api/warehouse/transfer-order`,
+            params,
+            { timeout: 60000, httpsAgent: sapAgent, headers: { Authorization: `Bearer ${makeSapToken()}` } }
+        );
+
+        const body = response.data;
+        if (!body.success)
+            throw new Error(body.error ?? 'SapServer returned success=false');
+
+        const rows = body.data;
+        res.json({ success: true, data: rows });
+
     } catch (err) {
         const status  = err.response?.status  ?? 500;
         const message = err.response?.data?.error ?? err.message;

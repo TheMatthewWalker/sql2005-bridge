@@ -175,17 +175,17 @@ async function submitTransferForm(e) {
   e.preventDefault();
 
   const params = {
-    sloc:          document.getElementById('tf-sloc').value.trim(),
-    material:      document.getElementById('tf-material').value.trim(),
-    batch:         document.getElementById('tf-batch').value.trim(),
-    qty:           parseFloat(document.getElementById('tf-qty').value.replace(',', '.')),
-    binType:       document.getElementById('tf-bintype').value.trim(),
-    bin:           document.getElementById('tf-bin').value.trim(),
-    destBinType:   document.getElementById('tf-destbintype').value.trim(),
-    destBin:       document.getElementById('tf-destbin').value.trim(),
-    category:      document.getElementById('tf-category').value.trim(),
-    special:       document.getElementById('tf-special').value.trim(),
-    specialNumber: document.getElementById('tf-specialnum').value.trim(),
+    StorageLocation:        document.getElementById('tf-sloc').value.trim(),
+    Material:               document.getElementById('tf-material').value.trim(),
+    Batch:                  document.getElementById('tf-batch').value.trim(),
+    Quantity:               parseFloat(document.getElementById('tf-qty').value.replace(',', '.')),
+    SourceType:          document.getElementById('tf-bintype').value.trim(),
+    SourceBin:              document.getElementById('tf-bin').value.trim(),
+    DestinationType:     document.getElementById('tf-destbintype').value.trim(),
+    DestinationBin:         document.getElementById('tf-destbin').value.trim(),
+    StockCategory:          document.getElementById('tf-category').value.trim(),
+    SpecialStockIndicator:  document.getElementById('tf-special').value.trim(),
+    SpecialStockNumber:     document.getElementById('tf-specialnum').value.trim(),
   };
 
   const submitBtn = document.getElementById('tf-submit');
@@ -204,44 +204,44 @@ async function submitTransferForm(e) {
 async function runStockTransfer(params) {
   if (!await checkSession()) return false;
   const resultEl = document.getElementById('tf-result');
-  try {
-    const res = await fetch('/api/sap/execute-rfc', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        functionName:     'L_TO_CREATE_SINGLE',
-        importParameters: {
-          'I_LGNUM': '312', // Fixed warehouse for now, could be made dynamic later',
-          'I_WERKS': '3012', // Fixed plant for now, could be made dynamic later',
-          'I_LGORT': params.sloc,
-          'I_SQUIT': 'X',
-          'I_BWLVS': '999',
-          'I_MATNR': sapPad(params.material, 18),
-          'I_ANFME': params.qty,
-          'I_CHARG': sapPad(params.batch,10)        || '',
-          'I_ZEUGN': sapPad(params.batch,10)        || '',
-          'I_VLTYP': params.binType,
-          'I_VLPLA': sapPad(params.bin,10),
-          'I_BESTQ': params.category     || '',
-          'I_SOBKZ': params.special      || '',
-          'I_SONUM': sapPad(params.specialNumber,16) || '',
-          'I_NLPLA': sapPad(params.destBin,10),
-          'I_NLTYP': params.destBinType,
+  const isConsignment = params.SpecialStockIndicator === 'K' && params.DestinationType === 'SA';
+
+  try 
+  {
+    var res;
+    if (params.SpecialStockIndicator === 'K' && params.DestinationType === 'SA') // Consignment stock to production bin requires different RFC
+    {
+      res = await fetch('/api/sap/warehouse/consignment-mb1b', {
+        method:  'POST',
+        headers: { 
+          'Content-Type': 'application/json', 
         },
-        inputTables:      {},
-        inputTablesItems: {},
-        exportParameters: ['E_TANUM'],
-        outputTables:     { RETURN: ['TYPE', 'MESSAGE'] },
-      }),
-    });
+        body: JSON.stringify({
+          'DeliveryNote': '',
+          'Header': "Consignment Usage",
+          'StorageLocation': params.StorageLocation,
+          'SpecialStockNumber': params.SpecialStockNumber,
+          'Material': params.Material,
+          'Quantity': params.Quantity,
+          'DestinationType': params.DestinationType,
+          'DestinationBin': params.DestinationBin,
+          'SourceType': params.SourceType,
+          'SourceBin': params.SourceBin
+        }),
+      });
+    }
+    else
+    {
+      res = await fetch('/api/sap/warehouse/transfer-order', {
+        method:  'POST',
+        headers: { 
+          'Content-Type': 'application/json', 
+        },
+        body: JSON.stringify(params),
+      });
+    }
 
     const json = await res.json();
-    console.group('[SAP] L_TO_CREATE_SINGLE');
-    console.log('HTTP status :', res.status);
-    console.log('Full response:', json);
-    console.log('Parameters  :', json.data?.data?.parameters);
-    console.log('Table keys  :', Object.keys(json.data?.data?.tables || {}));
-    console.log('RETURN table:', json.data?.data?.tables?.RETURN);
 
     if (!json.success) {
       console.error('Bridge error:', json.error);
@@ -249,25 +249,28 @@ async function runStockTransfer(params) {
       throw new Error(json.error || 'SAP call failed');
     }
 
-    const returnRows    = json.data?.data?.tables?.RETURN || [];
-    const transferOrder = json.data?.data?.parameters?.E_TANUM || '';
+    let type, msg;
 
-    // Scan RETURN rows for any E/A error messages
-    let errorMsg    = '';
-    let allMessages = '';
-    for (const row of returnRows) {
-      const t = row.TYPE    || '';
-      const m = row.MESSAGE || '';
-      allMessages += `${t}: ${m}\n`;
-      console.log(`  RETURN row — TYPE: "${t}"  MESSAGE: "${m}"`);
-      if (t === 'E' || t === 'A') errorMsg = m;
+    if (isConsignment) {
+        const parts = [
+            json.data?.mb1bMessage,
+            json.data?.toNonConsignMessage,
+            json.data?.toConsignMessage
+        ].filter(Boolean);
+        type = 'S';
+        msg  = parts.map(esc).join('<br>') || 'Consignment processed';
+    } else {
+        const transferOrder = json.data?.transferOrderNumber || '';
+        const errorMsg      = json.error || '';
+        const messages      = json.data?.messages || [];
+
+        type = (json.data?.success && !errorMsg) ? 'S' : 'E';
+
+        const lines = [];
+        if (transferOrder) lines.push(`Transfer Order: ${esc(transferOrder)}`);
+        if (messages.length) lines.push(...messages.map(esc));
+        msg = errorMsg ? esc(errorMsg) : (lines.join('<br>') || 'SAP returned no message');
     }
-
-    // Success: E_TANUM populated and no blocking errors
-    const type = (transferOrder && !errorMsg) ? 'S' : 'E';
-    const msg  = errorMsg || allMessages.trim() || 'SAP returned no message';
-    console.log('Outcome     :', type === 'S' ? `SUCCESS — TO# ${transferOrder}` : `FAILED — ${msg}`);
-    console.groupEnd();
 
     if (type === 'S') {
       resultEl.innerHTML = `
@@ -275,11 +278,11 @@ async function runStockTransfer(params) {
           <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
           <div>
             <div class="tf-success-title">Transfer Order Created</div>
-            <div class="tf-success-to">TO#&nbsp;${esc(transferOrder)}</div>
+            <div class="tf-success-to">${msg}</div>
           </div>
         </div>`;
     } else {
-      resultEl.innerHTML = `<div class="sap-error tf-inline-error">✕ ${esc(msg)}</div>`;
+      resultEl.innerHTML = `<div class="sap-error tf-inline-error">✕ ${msg}</div>`;
     }
 
   } catch (err) {
@@ -385,7 +388,8 @@ function renderResultTable(records, columns) {
 
   ctxTransfer.onclick = () => {
     ctxMenu.classList.add('hidden');
-    if (ctxRowData) showTransferFormFromRow(ctxRowData);
+    if (ctxRowData) 
+        showTransferFormFromRow(ctxRowData);
   };
 
   document.addEventListener('click',       () => ctxMenu.classList.add('hidden'), { once: false });
@@ -474,17 +478,17 @@ async function submitTransferFormRow(e) {
   const row = JSON.parse(e.target.dataset.source);
 
   const params = {
-    sloc:          row['Storage Location'],
-    material:      row['Material'],
-    batch:         row['Batch']            || '',
-    qty:           parseFloat(document.getElementById('tf-qty').value.replace(',', '.')),
-    binType:       row['Storage Type'],
-    bin:           row['Storage Bin'],
-    destBinType:   document.getElementById('tf-destbintype').value.trim(),
-    destBin:       document.getElementById('tf-destbin').value.trim(),
-    category:      row['Stock Category']    || '',
-    special:       row['Special Stock']     || '',
-    specialNumber: row['Special Stock No.'] || '',
+    StorageLocation:          row['Storage Location'],
+    Material:      row['Material'],
+    Batch:         row['Batch']            || '',
+    Quantity:      parseFloat(document.getElementById('tf-qty').value.replace(',', '.')),
+    SourceType:   row['Storage Type'],
+    SourceBin:    row['Storage Bin'],
+    DestinationType:   document.getElementById('tf-destbintype').value.trim(),
+    DestinationBin:       document.getElementById('tf-destbin').value.trim(),
+    StockCategory:      row['Stock Category']    || '',
+    SpecialStockIndicator:       row['Special Stock']     || '',
+    SpecialStockNumber: row['Special Stock No.'] || '',
   };
 
   const submitBtn = document.getElementById('tf-submit');
