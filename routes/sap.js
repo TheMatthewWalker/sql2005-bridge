@@ -2,10 +2,15 @@ import axios   from 'axios';
 import https   from 'https';
 import jwt     from 'jsonwebtoken';
 import express from 'express';
+import fs      from 'fs';
 import { sapConfig, sapServerSecret } from '../server.js';
 
-// SAP server uses a self-signed certificate — bypass verification for internal calls only
-const sapAgent = new https.Agent({ rejectUnauthorized: false });
+// SAP server uses a self-signed certificate — configure trusted certificate instead of bypassing verification
+const sapCert  = fs.readFileSync(new URL('../certs/sap-server-cert.pem', import.meta.url));
+const sapAgent = new https.Agent({
+    ca: sapCert,
+    rejectUnauthorized: true
+});
 
 // Sign a short-lived service token for each SapServer request.
 // Payload matches what SapServer expects: userId (int), issuer, audience.

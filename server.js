@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import bcrypt                 from 'bcrypt';
 import rateLimit              from 'express-rate-limit';
+import csurf                  from 'csurf';
 
 import mixingRoutes            from './routes/mixing.js';
 import shipmentMainRoutes      from './routes/shipmentmain.js';
@@ -35,6 +36,8 @@ import filterRecordsRoutes     from './routes/filterrecords.js';
 import exportXlsxRoutes        from './routes/exportxlsx.js';
 import reportRoutes            from './routes/reports.js';
 import sapRoutes               from "./routes/sap.js";
+import freightBookingRoutes    from './routes/freightbooking.js';
+import clearportExportRoutes  from './routes/clearportexport.js';
 
 import authRoutes              from './routes/auth.js';
 import adminRoutes             from './routes/useradmin.js';
@@ -50,6 +53,16 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// set up rate limiter: maximum of five requests per minute
+var RateLimit = require('express-rate-limit');
+var limiter = RateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // max 100 requests per windowMs
+});
+
+// apply rate limiter to all requests
+app.use(limiter);
+
 app.use(session({
   secret: config.sessionSecret,
   resave: false,
@@ -62,6 +75,14 @@ app.use(session({
     // secure: true,                      // uncomment when running HTTPS
   }
 }));
+
+// CSRF protection middleware (uses a cookie-based token)
+const csrfProtection = csurf({ cookie: true });
+
+// Helper route for clients to fetch a CSRF token once authenticated
+app.get('/csrf-token', requireLogin, csrfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
 
 // ── Auth routes (public — no requireLogin) ───────────────────────────────────
 app.use('/', authRoutes);
@@ -97,6 +118,8 @@ app.use('/api/filter-records', requireLogin,    filterRecordsRoutes);
 app.use('/api/export-xlsx', requireLogin,       exportXlsxRoutes);
 app.use('/api/reports', requireLogin,           reportRoutes);
 app.use('/api/sap', requireLogin,               sapRoutes);
+app.use('/api/freight-booking', requireLogin,   freightBookingRoutes);
+app.use('/api/clearport',      requireLogin,   clearportExportRoutes);
 
 
 // Serve static front-end files
@@ -210,7 +233,7 @@ async function auditQuery(eventType, username, detail, req) {
 }
 
 // ✅ Query API (still requires API key)
-app.post("/query", requireLogin, async (req, res) => {
+app.post("/query", requireLogin, csrfProtection, async (req, res) => {
   const { query } = req.body;
   if (!query) return res.status(400).json({ error: "Missing query" });
 
