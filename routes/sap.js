@@ -24,6 +24,27 @@ function makeSapToken() {
 const router = express.Router();
 
 // ---------------------------------------------------------------------------
+// POST /api/sap/token  (mounted at /api/sap in server.js)
+//
+// Generic helper to verify the user's session and return a JWT for authenticating to SapServer.
+// ---------------------------------------------------------------------------
+router.post('/token', (req, res) => {
+  const payload = {
+    userId:      req.session.user.userID,
+    username:    req.session.user.username,
+    role:        req.session.user.role,
+    departments: req.session.user.departments,
+  };
+  const token = jwt.sign(payload, sapServerSecret, {
+    expiresIn: '8h',
+    issuer:    'sql2005-bridge',
+    audience:  'sap-server',
+  });
+  res.json({ token });
+});
+
+
+// ---------------------------------------------------------------------------
 // POST /api/sap/execute-rfc  (mounted at /api/sap in server.js)
 //
 // Generic wrapper around SapServer's /api/rfc/execute endpoint.

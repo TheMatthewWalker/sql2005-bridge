@@ -104,6 +104,43 @@ function buildBookingPayload(shipment, pallets) {
     };
 }
 
+
+
+export async function getKnAccessToken() {
+  const tokenUrl = 'https://portal.api.kuehne-nagel.com/oauth2/token';
+
+  const basicAuth = 'Basic ' + process.env.KN_SECRET_64; // Base64(client_secret)
+
+  try {
+    const response = await axios.post(
+      tokenUrl,
+      new URLSearchParams({
+        grant_type: 'client_credentials',
+      }),
+      {
+        headers: {
+          Authorization: basicAuth,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        timeout: 15000,
+      }
+    );
+
+    //console.log(`[KN OAuth] Access token ${response.data.access_token} obtained, expires in ${response.data.expires_in} seconds.`);
+    return response.data; // { access_token, token_type, expires_in, ... }
+  } catch (err) {
+    if (err.response) {
+      throw new Error(
+        `KN OAuth error ${err.response.status}: ${JSON.stringify(err.response.data)}`
+      );
+    }
+    throw new Error(`KN OAuth request failed: ${err.message}`);
+  }
+}
+
+
+
 // ── POST /api/freight-booking/shipment/:shipmentId ────────────────────────────
 // Creates a KN freight booking for the given shipment, using ShipmentMain as
 // the header and all linked PalletMain records as cargoItems.
@@ -122,7 +159,7 @@ router.post('/shipment/:shipmentId', async (req, res) => {
         // Fetch shipment header
         const shipmentResult = await pool.request()
             .input('shipmentId', sql.BigInt, shipmentId)
-            .query('SELECT * FROM dbo.ShipmentMain WHERE shipmentID = @shipmentId');
+            .query('USE Logistics SELECT * FROM dbo.ShipmentMain WHERE shipmentID = @shipmentId');
 
         if (shipmentResult.recordset.length === 0) {
             return res.status(404).json({ error: `Shipment ${shipmentId} not found.` });
@@ -133,6 +170,7 @@ router.post('/shipment/:shipmentId', async (req, res) => {
         const palletsResult = await pool.request()
             .input('shipmentId', sql.BigInt, shipmentId)
             .query(`
+                USE Logistics 
                 SELECT pm.*
                 FROM dbo.PalletMain pm
                 INNER JOIN dbo.DeliveryLink dl ON dl.palletID = pm.palletID
@@ -152,19 +190,25 @@ router.post('/shipment/:shipmentId', async (req, res) => {
 
     const payload = buildBookingPayload(shipment, pallets);
 
+    var KN_ACCESS_TOKEN = await getKnAccessToken().then(tokenData => tokenData.access_token);
+
     try {
-        const knResponse = await axios.post(KN_API_URL, payload, {
+        const knResponse = await axios.post(KN_API_URL + '/bookings', payload, {
             headers: {
                 'Content-Type': 'application/json',
-                'Accept':       'application/json',
+                'Accept':       'application/problem+json',
+                'Authorization': 'Bearer ' + KN_ACCESS_TOKEN
             },
             timeout: 30000,
         });
 
         return res.status(201).json({
-            message:    'Booking created successfully',
+            message: 'Booking created successfully',
             shipmentID: Number(shipmentId),
-            booking:    knResponse.data,
+            bookingID: knResponse.data?.bookingID ?? null,
+            transactionID: knResponse.data?.transactionID ?? null,
+            bookingIsSuccessful: knResponse.data?.bookingIsSuccessful ?? null,
+            data: knResponse.data
         });
 
     } catch (err) {
