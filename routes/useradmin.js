@@ -52,7 +52,7 @@ router.get('/pending', async (req, res) => {
     const pool   = await sql.connect(sqlConfig);
     const result = await pool.request().query(`
       SELECT UserID, Username, Email, CreatedAt
-      FROM dbo.PortalUsers
+      FROM kongsberg.dbo.PortalUsers
       WHERE IsActive = 0
       ORDER BY CreatedAt ASC
     `);
@@ -74,12 +74,12 @@ router.get('/users', async (req, res) => {
         UserID, Username, Email, Role,
         IsActive, IsLocked, FailedLogins,
         CreatedAt, LastLogin, Notes
-      FROM dbo.PortalUsers
+      FROM kongsberg.dbo.PortalUsers
       ORDER BY CreatedAt DESC
     `);
 
     const deptsResult = await pool.request().query(`
-      SELECT UserID, Department FROM dbo.PortalUserDepartments
+      SELECT UserID, Department FROM kongsberg.dbo.PortalUserDepartments
     `);
 
     // Group departments by UserID
@@ -128,7 +128,7 @@ router.put('/users/:id', async (req, res) => {
     // Get current state for audit comparison
     const current = await pool.request()
       .input('userID', sql.Int, userID)
-      .query('SELECT Username, Role, IsActive, IsLocked FROM dbo.PortalUsers WHERE UserID = @userID');
+      .query('SELECT Username, Role, IsActive, IsLocked FROM kongsberg.dbo.PortalUsers WHERE UserID = @userID');
 
     if (!current.recordset[0]) {
       return res.status(404).json({ success: false, error: 'User not found' });
@@ -163,7 +163,7 @@ router.put('/users/:id', async (req, res) => {
       .input('isLocked', sql.Bit,           isLocked ?? prev.IsLocked)
       .input('notes',    sql.NVarChar(500), notes    ?? null)
       .query(`
-        UPDATE dbo.PortalUsers
+        UPDATE kongsberg.dbo.PortalUsers
         SET Role     = @role,
             IsActive = @isActive,
             IsLocked = @isLocked,
@@ -177,7 +177,7 @@ router.put('/users/:id', async (req, res) => {
     if (Array.isArray(departments)) {
       await pool.request()
         .input('userID', sql.Int, userID)
-        .query('DELETE FROM dbo.PortalUserDepartments WHERE UserID = @userID');
+        .query('DELETE FROM kongsberg.dbo.PortalUserDepartments WHERE UserID = @userID');
 
       for (const dept of departments) {
         await pool.request()
@@ -185,7 +185,7 @@ router.put('/users/:id', async (req, res) => {
           .input('dept',      sql.NVarChar(50), dept)
           .input('grantedBy', sql.NVarChar(80), req.session.user.username)
           .query(`
-            INSERT INTO dbo.PortalUserDepartments (UserID, Department, GrantedBy)
+            INSERT INTO kongsberg.dbo.PortalUserDepartments (UserID, Department, GrantedBy)
             VALUES (@userID, @dept, @grantedBy)
           `);
       }
@@ -254,7 +254,7 @@ router.post('/users/:id/approve', async (req, res) => {
       .input('role',       sql.NVarChar(20), role)
       .input('approvedBy', sql.NVarChar(80), actor)
       .query(`
-        UPDATE dbo.PortalUsers
+        UPDATE kongsberg.dbo.PortalUsers
         SET IsActive   = 1,
             Role       = @role,
             ApprovedBy = @approvedBy,
@@ -275,7 +275,7 @@ router.post('/users/:id/approve', async (req, res) => {
         .input('dept',      sql.NVarChar(50), dept)
         .input('grantedBy', sql.NVarChar(80), actor)
         .query(`
-          INSERT INTO dbo.PortalUserDepartments (UserID, Department, GrantedBy)
+          INSERT INTO kongsberg.dbo.PortalUserDepartments (UserID, Department, GrantedBy)
           VALUES (@userID, @dept, @grantedBy)
         `);
     }
@@ -306,7 +306,7 @@ router.post('/users/:id/reject', async (req, res) => {
     const result = await pool.request()
       .input('userID', sql.Int, userID)
       .query(`
-        DELETE FROM dbo.PortalUsers
+        DELETE FROM kongsberg.dbo.PortalUsers
         OUTPUT DELETED.Username
         WHERE UserID = @userID AND IsActive = 0
       `);
@@ -334,6 +334,8 @@ router.get('/audit', async (req, res) => {
   const VALID_EVENTS = [
     'LOGIN_OK','LOGIN_FAIL','LOGOUT','REGISTER',
     'APPROVED','REJECTED','ROLE_CHANGE','DEPT_CHANGE','LOCKED','UNLOCKED',
+    'RAW_SQL','RAW_SQL_BLOCKED','RAW_SQL_ERROR',
+    'SAP_OK','SAP_ERROR',
   ];
 
   if (event && !VALID_EVENTS.includes(event)) {

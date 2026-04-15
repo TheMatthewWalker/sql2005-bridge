@@ -70,7 +70,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         SELECT
           u.UserID, u.Username, u.Email, u.PasswordHash,
           u.Role, u.IsActive, u.IsLocked, u.FailedLogins
-        FROM dbo.PortalUsers u
+        FROM kongsberg.dbo.PortalUsers u
         WHERE u.Username = @username
       `);
 
@@ -107,7 +107,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         .input('failedLogins', sql.Int, newFailCount)
         .input('isLocked',    sql.Bit, shouldLock ? 1 : 0)
         .query(`
-          UPDATE dbo.PortalUsers
+          UPDATE kongsberg.dbo.PortalUsers
           SET FailedLogins = @failedLogins, IsLocked = @isLocked
           WHERE UserID = @userID
         `);
@@ -123,7 +123,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     const deptResult = await pool.request()
       .input('userID', sql.Int, user.UserID)
       .query(`
-        SELECT Department FROM dbo.PortalUserDepartments
+        SELECT Department FROM kongsberg.dbo.PortalUserDepartments
         WHERE UserID = @userID
       `);
 
@@ -133,7 +133,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     await pool.request()
       .input('userID', sql.Int, user.UserID)
       .query(`
-        UPDATE dbo.PortalUsers
+        UPDATE kongsberg.dbo.PortalUsers
         SET FailedLogins = 0, IsLocked = 0, LastLogin = GETDATE()
         WHERE UserID = @userID
       `);
@@ -228,7 +228,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       .input('username', sql.NVarChar(80),  usernameClean)
       .input('email',    sql.NVarChar(160), emailClean)
       .query(`
-        SELECT Username, Email FROM dbo.PortalUsers
+        SELECT Username, Email FROM kongsberg.dbo.PortalUsers
         WHERE Username = @username OR Email = @email
       `);
 
@@ -250,7 +250,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       .input('email',    sql.NVarChar(160), emailClean)
       .input('hash',     sql.NVarChar(256), hash)
       .query(`
-        INSERT INTO dbo.PortalUsers (Username, Email, PasswordHash, Role, IsActive)
+        INSERT INTO kongsberg.dbo.PortalUsers (Username, Email, PasswordHash, Role, IsActive)
         VALUES (@username, @email, @hash, 'viewer', 0)
       `);
 

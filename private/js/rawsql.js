@@ -75,7 +75,7 @@ async function runRawSql() {
 
     if (rows.length > 0) {
       resultEl.innerHTML = buildTableHTML(rows, 'rawsql-dt');
-      try { new DataTable('#rawsql-dt', { pageLength: 25, scrollX: true }); } catch (_) {}
+      try { new DataTable('#rawsql-dt', { pageLength: 10, scrollX: true }); } catch (_) {}
       updateBadge(`${rows.length} row(s)`);
     } else {
       const affected = Array.isArray(data.rowsAffected)

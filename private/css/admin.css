@@ -319,6 +319,8 @@ tbody td:last-child { border-right: none; }
 .event--RAW_SQL          { background: #E0F2FE;            color: #0369A1; }
 .event--RAW_SQL_BLOCKED  { background: var(--warn-dim);    color: var(--warn); }
 .event--RAW_SQL_ERROR    { background: var(--error-dim);   color: var(--error); }
+.event--SAP_OK           { background: var(--success-dim); color: var(--success); }
+.event--SAP_ERROR        { background: var(--error-dim);   color: var(--error); }
 
 /* ── BUTTONS ─────────────────────────────────────────────────────────────── */
 .btn-primary {

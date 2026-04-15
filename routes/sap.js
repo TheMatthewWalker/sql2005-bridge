@@ -3,7 +3,8 @@ import https   from 'https';
 import jwt     from 'jsonwebtoken';
 import express from 'express';
 import fs      from 'fs';
-import { sapConfig, sapServerSecret } from '../server.js';
+import sql     from 'mssql';
+import { sapConfig, sapServerSecret, sqlConfig } from '../server.js';
 
 // Use a pinned certificate when connecting over HTTPS; fall back to no custom agent for HTTP (dev).
 const certPath = new URL('../certs/sap-server-cert.pem', import.meta.url);
@@ -21,6 +22,34 @@ function makeSapToken() {
     );
 }
 
+// ── Audit helper ──────────────────────────────────────────────────────────────
+async function audit(eventType, actorUsername, detail, req) {
+  try {
+    const pool = await sql.connect(sqlConfig);
+    const ip   = req.ip || req.socket?.remoteAddress || null;
+    await pool.request()
+      .input('username',  sql.NVarChar(80),  actorUsername || null)
+      .input('eventType', sql.NVarChar(50),  eventType)
+      .input('detail',    sql.NVarChar(500), detail || null)
+      .input('ip',        sql.NVarChar(45),  ip)
+      .query(`
+        INSERT INTO kongsberg.dbo.PortalAuditLog (Username, EventType, Detail, IPAddress)
+        VALUES (@username, @eventType, @detail, @ip)
+      `);
+  } catch (err) {
+    console.error('[admin audit]', err.message);
+  }
+}
+
+function getActorUsername(req) {
+  return req.session?.user?.username || null;
+}
+
+function buildAuditDetail(req, summary, extra = null) {
+  const detail = [`${req.method} ${req.originalUrl}`, summary, extra].filter(Boolean).join(' | ');
+  return detail.slice(0, 500);
+}
+
 const router = express.Router();
 
 // ---------------------------------------------------------------------------
@@ -28,19 +57,25 @@ const router = express.Router();
 //
 // Generic helper to verify the user's session and return a JWT for authenticating to SapServer.
 // ---------------------------------------------------------------------------
-router.post('/token', (req, res) => {
-  const payload = {
-    userId:      req.session.user.userID,
-    username:    req.session.user.username,
-    role:        req.session.user.role,
-    departments: req.session.user.departments,
-  };
-  const token = jwt.sign(payload, sapServerSecret, {
-    expiresIn: '8h',
-    issuer:    'sql2005-bridge',
-    audience:  'sap-server',
-  });
-  res.json({ token });
+router.post('/token', async (req, res) => {
+  try {
+    const payload = {
+      userId:      req.session.user.userID,
+      username:    req.session.user.username,
+      role:        req.session.user.role,
+      departments: req.session.user.departments,
+    };
+    const token = jwt.sign(payload, sapServerSecret, {
+      expiresIn: '8h',
+      issuer:    'sql2005-bridge',
+      audience:  'sap-server',
+    });
+    await audit('SAP_OK', getActorUsername(req), buildAuditDetail(req, 'Issued SAP token'), req);
+    res.json({ token });
+  } catch (err) {
+    await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, 'Failed to issue SAP token', err.message), req);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 
@@ -69,8 +104,10 @@ router.post("/execute-rfc", async (req, res) => {
         outputTables      = {}
     } = req.body;
 
-    if (!functionName)
+    if (!functionName) {
+        await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, 'RFC request rejected', 'Missing functionName'), req);
         return res.status(400).json({ success: false, error: "Missing functionName" });
+    }
 
     //console.group(`[SAP] execute-rfc → ${functionName}`);
     //console.log('Import parameters:', importParameters);
@@ -89,13 +126,14 @@ router.post("/execute-rfc", async (req, res) => {
         //console.log('HTTP status:', response.status);
         //console.log('Response:', JSON.stringify(response.data, null, 2));
         //console.groupEnd();
+        await audit('SAP_OK', getActorUsername(req), buildAuditDetail(req, `RFC ${functionName} succeeded`), req);
         res.json({ success: true, data: response.data });
     } catch (err) {
         const status  = err.response?.status  ?? 500;
         const message = err.response?.data?.error?.message ?? err.message;
+        await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, `RFC ${functionName || 'unknown'} failed`, message), req);
         console.error('Error:', status, message);
         if (err.response?.data) console.error('Response body:', JSON.stringify(err.response.data, null, 2));
-        console.groupEnd();
         res.status(status).json({ success: false, error: message });
     }
 });
@@ -111,8 +149,10 @@ router.post("/execute-rfc", async (req, res) => {
 router.post("/cost-sheet", async (req, res) => {
     const { items, date } = req.body;
 
-    if (!Array.isArray(items))
+    if (!Array.isArray(items)) {
+        await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, 'Cost sheet request rejected', 'Missing items'), req);
         return res.status(400).json({ success: false, error: "Missing items" });
+    }
 
     try {
         const response = await axios.post(
@@ -126,14 +166,15 @@ router.post("/cost-sheet", async (req, res) => {
             throw new Error(body.error ?? 'SapServer returned success=false');
 
         const rows = body.data;
+        await audit('SAP_OK', getActorUsername(req), buildAuditDetail(req, `Cost sheet succeeded (${items.length} items)`), req);
         res.json({ success: true, data: rows });
 
     } catch (err) {
         const status  = err.response?.status  ?? 500;
         const message = err.response?.data?.error ?? err.message;
+        await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, 'Cost sheet failed', message), req);
         console.error('Error:', status, message);
         if (err.response?.data) console.error('Response body:', JSON.stringify(err.response.data, null, 2));
-        console.groupEnd();
         res.status(status).json({ success: false, error: message });
     }
 });
@@ -159,14 +200,15 @@ router.post("/warehouse/consignment-mb1b", async (req, res) => {
             throw new Error(body.error ?? 'SapServer returned success=false');
 
         const rows = body.data;
+        await audit('SAP_OK', getActorUsername(req), buildAuditDetail(req, `Consignment MB1B succeeded for material ${params.Material || ''}`), req);
         res.json({ success: true, data: rows });
 
     } catch (err) {
         const status  = err.response?.status  ?? 500;
         const message = err.response?.data?.error ?? err.message;
+        await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, `Consignment MB1B failed for material ${params.Material || ''}`, message), req);
         console.error('Error:', status, message);
         if (err.response?.data) console.error('Response body:', JSON.stringify(err.response.data, null, 2));
-        console.groupEnd();
         res.status(status).json({ success: false, error: message });
     }
 });
@@ -192,14 +234,15 @@ router.post("/warehouse/transfer-order", async (req, res) => {
             throw new Error(body.error ?? 'SapServer returned success=false');
 
         const rows = body.data;
+        await audit('SAP_OK', getActorUsername(req), buildAuditDetail(req, `Transfer order succeeded for material ${params.Material || ''}`), req);
         res.json({ success: true, data: rows });
 
     } catch (err) {
         const status  = err.response?.status  ?? 500;
         const message = err.response?.data?.error ?? err.message;
+        await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, `Transfer order failed for material ${params.Material || ''}`, message), req);
         console.error('Error:', status, message);
         if (err.response?.data) console.error('Response body:', JSON.stringify(err.response.data, null, 2));
-        console.groupEnd();
         res.status(status).json({ success: false, error: message });
     }
 });

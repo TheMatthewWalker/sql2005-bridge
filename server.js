@@ -202,7 +202,7 @@ function isAdmin(username) {
   return req => req.session?.user?.role === 'admin' || req.session?.user?.role === 'superadmin';
 }
 
-// ── Audit helper — writes to dbo.PortalAuditLog (fire-and-forget) ─────────────
+// ── Audit helper — writes to kongsberg.dbo.PortalAuditLog (fire-and-forget) ─────────────
 async function auditQuery(eventType, username, detail, req) {
   try {
     const pool = await sql.connect(sqlConfig);
@@ -213,7 +213,7 @@ async function auditQuery(eventType, username, detail, req) {
       .input('detail',    sql.NVarChar(500), detail    || null)
       .input('ip',        sql.NVarChar(45),  ip)
       .query(`
-        INSERT INTO dbo.PortalAuditLog (Username, EventType, Detail, IPAddress)
+        INSERT INTO kongsberg.dbo.PortalAuditLog (Username, EventType, Detail, IPAddress)
         VALUES (@username, @eventType, @detail, @ip)
       `);
   } catch (err) {
