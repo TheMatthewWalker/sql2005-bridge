@@ -15,7 +15,7 @@
     "bcrypt": "^6.0.0",
     "combined-stream": "file:node-combined-stream-1.0.8.tar.gz",
     "cors": "^2.8.5",
-    "csurf": "^1.2.2",
+    "csurf": "^1.11.0",
     "dotenv": "^17.3.1",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
