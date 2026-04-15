@@ -37,7 +37,7 @@ async function audit(eventType, actorUsername, detail, req) {
       .input('detail',    sql.NVarChar(500), detail || null)
       .input('ip',        sql.NVarChar(45),  ip)
       .query(`
-        INSERT INTO dbo.PortalAuditLog (Username, EventType, Detail, IPAddress)
+        INSERT INTO kongsberg.dbo.PortalAuditLog (Username, EventType, Detail, IPAddress)
         VALUES (@username, @eventType, @detail, @ip)
       `);
   } catch (err) {
@@ -353,7 +353,7 @@ router.get('/audit', async (req, res) => {
     const result = await request.query(`
       SELECT TOP 500
         LogID, EventTime, Username, EventType, Detail, IPAddress
-      FROM dbo.PortalAuditLog
+      FROM kongsberg.dbo.PortalAuditLog
       ${whereClause}
       ORDER BY EventTime DESC
     `);

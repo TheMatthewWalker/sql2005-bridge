@@ -56,15 +56,15 @@
           <div class="tile-desc">Open purchase orders and delivery schedule lines</div>
         </div>
 
-        <div class="sap-tile sap-tile--placeholder" data-fn="openDeliveries">
+        <div class="sap-tile sap-tile--live" data-fn="openDeliveries">
           <div class="tile-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
               <rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
             </svg>
           </div>
-          <span class="tile-badge tile-badge--soon">SOON</span>
+          <span class="tile-badge tile-badge--live">LIVE</span>
           <div class="tile-title">Open Deliveries</div>
-          <div class="tile-desc">Outbound deliveries pending dispatch or confirmation</div>
+          <div class="tile-desc">Completed picksheets ready to group into a shipment</div>
         </div>
 
         <div class="sap-tile sap-tile--placeholder" data-fn="goodsMovement">
@@ -130,6 +130,8 @@
     </div>
 
   </div>
+
+  <div class="ps-modal-overlay hidden" id="ps-modal-overlay"></div>
 
   <footer class="footer">
     Kongsberg Enterprise Portal &nbsp;·&nbsp; Logistics &nbsp;·&nbsp; SAP Integration &nbsp;·&nbsp; Authorised access only

@@ -43,7 +43,7 @@ async function audit(eventType, username, detail, req) {
       .input('detail',    sql.NVarChar(500), detail    || null)
       .input('ip',        sql.NVarChar(45),  ip)
       .query(`
-        INSERT INTO dbo.PortalAuditLog (Username, EventType, Detail, IPAddress)
+        INSERT INTO kongsberg.dbo.PortalAuditLog (Username, EventType, Detail, IPAddress)
         VALUES (@username, @eventType, @detail, @ip)
       `);
   } catch (err) {

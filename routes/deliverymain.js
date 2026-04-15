@@ -128,6 +128,33 @@ router.get('/open-picksheets', async (req, res) => {
     }
 });
 
+// ── Completed deliveries available for shipment creation ──
+router.get('/completed-unshipped', async (req, res) => {
+    try {
+        const pool = await getPool();
+        const result = await pool.request()
+            .query(`SELECT dm.deliveryID, dm.customerID, dm.dueDate, dm.completionDate,
+                           dm.deliveryService, dm.picksheetComment, dm.deliveryPriority,
+                           CAST(ISNULL(dm.netWeight, 0) AS decimal(18,3)) AS netWeight,
+                           CAST(ISNULL(dm.grossWeight, 0) AS decimal(18,3)) AS grossWeight,
+                           CAST(ISNULL(dm.palletCount, 0) AS decimal(18,3)) AS palletCount,
+                           CAST(ISNULL(dm.deliveryVolume, 0) AS decimal(18,3)) AS deliveryVolume,
+                           d.destinationName, d.destinationStreet, d.destinationCity,
+                           d.destinationPostCode, d.destinationCountry, d.destinationEmail,
+                           d.defaultIncoterms
+                    FROM Logistics.dbo.DeliveryMain dm
+                    LEFT JOIN Logistics.dbo.Destinations d ON dm.customerID = d.destinationID
+                    LEFT JOIN Logistics.dbo.ShipmentLink sl ON sl.deliveryID = dm.deliveryID
+                    WHERE dm.completionStatus = 1
+                      AND ISNULL(dm.deliveryCancelled, 0) = 0
+                      AND sl.deliveryID IS NULL
+                    ORDER BY dm.deliveryPriority DESC, dm.completionDate DESC, dm.dueDate ASC, dm.deliveryID ASC`);
+        res.json({ success: true, data: result.recordset });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // ── Pallets picked for a delivery (DeliveryMain → DeliveryLink → PalletMain) ──
 router.get('/:deliveryId/pallets', async (req, res) => {
     try {
