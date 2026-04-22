@@ -543,6 +543,12 @@ body::before {
   color: var(--error);
 }
 
+.lg-selection-msg--success {
+  background: rgba(5, 150, 105, 0.08);
+  border-color: rgba(5, 150, 105, 0.25);
+  color: var(--success);
+}
+
 .ps-sections { display: flex; flex-direction: column; gap: 12px; }
 .ps-section {
   background: var(--surface);
@@ -729,6 +735,9 @@ body::before {
 .lg-doc-link:hover { text-decoration: underline; }
 .shipment-action-cell { width: 170px; }
 .shipment-action-btn { min-width: 140px; }
+.booking-inline-input { min-width: 140px; }
+.booking-modal-table { margin-top: 16px; }
+.booking-help { margin-top: 12px; }
 
 @media (max-width: 960px) {
   .tile-grid,

@@ -247,4 +247,140 @@ router.post("/warehouse/transfer-order", async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------------------------
+// POST /api/sap/lips
+// Delivery line items: material number, item number, quantity per delivery.
+// ---------------------------------------------------------------------------
+router.post('/lips', async (req, res) => {
+    const { deliveries } = req.body;
+    if (!Array.isArray(deliveries) || !deliveries.length)
+        return res.status(400).json({ success: false, error: 'deliveries array is required.' });
+    try {
+        const response = await axios.post(
+            `${sapConfig.url}/api/customs/lips`,
+            { deliveries },
+            { timeout: 30000, httpsAgent: sapAgent, headers: { Authorization: `Bearer ${makeSapToken()}` } }
+        );
+        const body = response.data;
+        if (!body.success) throw new Error(body.error ?? 'SapServer returned success=false');
+        await audit('SAP_OK', getActorUsername(req), buildAuditDetail(req, `LIPS query (${deliveries.length} deliveries)`), req);
+        res.json({ success: true, data: body.data });
+    } catch (err) {
+        const status  = err.response?.status  ?? 500;
+        const message = err.response?.data?.error ?? err.message;
+        await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, 'LIPS query failed', message), req);
+        res.status(status).json({ success: false, error: message });
+    }
+});
+
+
+// ---------------------------------------------------------------------------
+// POST /api/sap/likp
+// Delivery header: incoterms and consignee (KUNNR) per delivery.
+// ---------------------------------------------------------------------------
+router.post('/likp', async (req, res) => {
+    const { deliveries } = req.body;
+    if (!Array.isArray(deliveries) || !deliveries.length)
+        return res.status(400).json({ success: false, error: 'deliveries array is required.' });
+    try {
+        const response = await axios.post(
+            `${sapConfig.url}/api/customs/likp`,
+            { deliveries },
+            { timeout: 30000, httpsAgent: sapAgent, headers: { Authorization: `Bearer ${makeSapToken()}` } }
+        );
+        const body = response.data;
+        if (!body.success) throw new Error(body.error ?? 'SapServer returned success=false');
+        await audit('SAP_OK', getActorUsername(req), buildAuditDetail(req, `LIKP query (${deliveries.length} deliveries)`), req);
+        res.json({ success: true, data: body.data });
+    } catch (err) {
+        const status  = err.response?.status  ?? 500;
+        const message = err.response?.data?.error ?? err.message;
+        await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, 'LIKP query failed', message), req);
+        res.status(status).json({ success: false, error: message });
+    }
+});
+
+
+// ---------------------------------------------------------------------------
+// POST /api/sap/vbfa
+// Document flow: invoice number, invoice item, and statistical value per
+// delivery line item.
+// ---------------------------------------------------------------------------
+router.post('/vbfa', async (req, res) => {
+    const { lines } = req.body;
+    if (!Array.isArray(lines) || !lines.length)
+        return res.status(400).json({ success: false, error: 'lines array is required.' });
+    try {
+        const response = await axios.post(
+            `${sapConfig.url}/api/customs/vbfa`,
+            { lines },
+            { timeout: 30000, httpsAgent: sapAgent, headers: { Authorization: `Bearer ${makeSapToken()}` } }
+        );
+        const body = response.data;
+        if (!body.success) throw new Error(body.error ?? 'SapServer returned success=false');
+        await audit('SAP_OK', getActorUsername(req), buildAuditDetail(req, `VBFA query (${lines.length} lines)`), req);
+        res.json({ success: true, data: body.data });
+    } catch (err) {
+        const status  = err.response?.status  ?? 500;
+        const message = err.response?.data?.error ?? err.message;
+        await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, 'VBFA query failed', message), req);
+        res.status(status).json({ success: false, error: message });
+    }
+});
+
+
+// ---------------------------------------------------------------------------
+// POST /api/sap/marc
+// Material master: commodity (HS) code and country of origin per material.
+// ---------------------------------------------------------------------------
+router.post('/marc', async (req, res) => {
+    const { materials } = req.body;
+    if (!Array.isArray(materials) || !materials.length)
+        return res.status(400).json({ success: false, error: 'materials array is required.' });
+    try {
+        const response = await axios.post(
+            `${sapConfig.url}/api/customs/marc`,
+            { materials },
+            { timeout: 30000, httpsAgent: sapAgent, headers: { Authorization: `Bearer ${makeSapToken()}` } }
+        );
+        const body = response.data;
+        if (!body.success) throw new Error(body.error ?? 'SapServer returned success=false');
+        await audit('SAP_OK', getActorUsername(req), buildAuditDetail(req, `MARC query (${materials.length} materials)`), req);
+        res.json({ success: true, data: body.data });
+    } catch (err) {
+        const status  = err.response?.status  ?? 500;
+        const message = err.response?.data?.error ?? err.message;
+        await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, 'MARC query failed', message), req);
+        res.status(status).json({ success: false, error: message });
+    }
+});
+
+
+// ---------------------------------------------------------------------------
+// POST /api/sap/kna1
+// Customer master: destination country per consignee code.
+// ---------------------------------------------------------------------------
+router.post('/kna1', async (req, res) => {
+    const { customers } = req.body;
+    if (!Array.isArray(customers) || !customers.length)
+        return res.status(400).json({ success: false, error: 'customers array is required.' });
+    try {
+        const response = await axios.post(
+            `${sapConfig.url}/api/customs/kna1`,
+            { customers },
+            { timeout: 30000, httpsAgent: sapAgent, headers: { Authorization: `Bearer ${makeSapToken()}` } }
+        );
+        const body = response.data;
+        if (!body.success) throw new Error(body.error ?? 'SapServer returned success=false');
+        await audit('SAP_OK', getActorUsername(req), buildAuditDetail(req, `KNA1 query (${customers.length} customers)`), req);
+        res.json({ success: true, data: body.data });
+    } catch (err) {
+        const status  = err.response?.status  ?? 500;
+        const message = err.response?.data?.error ?? err.message;
+        await audit('SAP_ERROR', getActorUsername(req), buildAuditDetail(req, 'KNA1 query failed', message), req);
+        res.status(status).json({ success: false, error: message });
+    }
+});
+
+
 export default router;

@@ -6,8 +6,12 @@ let deliveryRows = [];
 let shipmentRows = [];
 let selectedDeliveryIds = new Set();
 let selectedBookingShipmentIds = new Set();
+let selectedCustomsShipmentIds = new Set();
 let latestShipment = null;
 let currentShipmentView = null;
+let approvedForwarders = null;
+let allForwarders = null;
+let customsBatchNotice = null;
 
 
 const BUCKETS = [
@@ -65,6 +69,7 @@ document.querySelectorAll('.sap-tile--live').forEach(tile => {
     if (fn === 'inboundShipments') runShipmentQueue('inbound');
     if (fn === 'inTransitShipments') runShipmentQueue('in-transit');
     if (fn === 'awaitingBooking') runShipmentBooking();
+    if (fn === 'customsDocs') runCustomsDocuments();
   });
 });
 
@@ -90,7 +95,7 @@ function showResultPanel(title, hint) {
   document.getElementById('result-hint').textContent = hint;
   document.getElementById('result-row-badge').classList.add('hidden');
   document.getElementById('btn-export-csv').classList.add('hidden');
-  document.getElementById('result-body').innerHTML = '<div class="sap-loading"><div class="spinner"></div>Loading deliveries...</div>';
+  document.getElementById('result-body').innerHTML = '<div class="sap-loading"><div class="spinner"></div>Loading...</div>';
 }
 
 
@@ -102,8 +107,10 @@ function backToTiles() {
   deliveryRows = [];
   shipmentRows = [];
   selectedBookingShipmentIds = new Set();
+  selectedCustomsShipmentIds = new Set();
   latestShipment = null;
   currentShipmentView = null;
+  customsBatchNotice = null;
 }
 
 
@@ -132,6 +139,61 @@ function formatDisplayDate(value) {
 function getShipmentPlannedDate(row, mode) {
   if (mode === 'awaiting-collection') return row.plannedCollection;
   return row.plannedDelivery || row.plannedCollection || row.plannedMovement;
+}
+
+
+function getSelectedBookingRows() {
+  return shipmentRows.filter(row => selectedBookingShipmentIds.has(Number(row.shipmentID)));
+}
+
+
+function getSelectedBookingHaulierName() {
+  return getSelectedBookingRows()[0]?.forwarderName || '';
+}
+
+
+function hasAssignedHaulier(row) {
+  return Boolean(String(row?.forwarderName || '').trim());
+}
+
+
+function getBookingSelectionKey(row) {
+  return hasAssignedHaulier(row) ? normalizeHaulierName(row.forwarderName) : '__unassigned__';
+}
+
+
+function normalizeHaulierName(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+
+function isCustomerCollectHaulier(value) {
+  const normalized = normalizeHaulierName(value);
+  return normalized.includes('customercollect');
+}
+
+
+function isKnHaulier(value) {
+  const normalized = normalizeHaulierName(value);
+  return normalized.includes('kuehnenagel') || normalized.includes('kuehneandnagel');
+}
+
+
+async function loadApprovedForwarders() {
+  if (approvedForwarders) return approvedForwarders;
+  const res = await fetch('/api/forwarders/approved');
+  const json = await res.json();
+  approvedForwarders = Array.isArray(json) ? json : [];
+  return approvedForwarders;
+}
+
+
+async function loadAllForwarders() {
+  if (allForwarders) return allForwarders;
+  const res = await fetch('/api/forwarders');
+  const json = await res.json();
+  allForwarders = Array.isArray(json) ? json : [];
+  return allForwarders;
 }
 
 
@@ -170,7 +232,7 @@ async function runShipmentBooking() {
     const res = await fetch('/api/shipmentmain/queue/awaiting-booking');
     const json = await res.json();
     if (!json.success) throw new Error(json.error || 'Failed to load shipments');
-    shipmentRows = json.data || [];
+    shipmentRows = Array.from(new Map((json.data || []).map(row => [Number(row.shipmentID), row])).values());
     currentResult = shipmentRows;
     const badge = document.getElementById('result-row-badge');
     badge.textContent = `${shipmentRows.length} waiting`;
@@ -180,6 +242,32 @@ async function runShipmentBooking() {
       return;
     }
     renderShipmentBooking();
+  } catch (err) {
+    document.getElementById('result-body').innerHTML = `<div class="sap-error">${esc(err.message)}</div>`;
+  }
+}
+
+
+async function runCustomsDocuments() {
+  if (!await checkSession()) return;
+  currentShipmentView = 'customs-docs';
+  selectedCustomsShipmentIds = new Set();
+  showResultPanel('Customs Documents', 'Shipments requiring customs entries through ClearPort.');
+  try {
+    const res = await fetch('/api/shipmentmain/queue/customs-docs');
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to load customs shipments');
+    shipmentRows = Array.from(new Map((json.data || []).map(row => [Number(row.shipmentID), row])).values());
+    currentResult = shipmentRows;
+    const badge = document.getElementById('result-row-badge');
+    badge.textContent = `${shipmentRows.length} waiting`;
+    badge.classList.remove('hidden');
+    if (!shipmentRows.length) {
+      document.getElementById('result-body').innerHTML = '<div class="sap-error">No shipments are currently awaiting customs documents.</div>';
+      customsBatchNotice = null;
+      return;
+    }
+    renderCustomsDocuments();
   } catch (err) {
     document.getElementById('result-body').innerHTML = `<div class="sap-error">${esc(err.message)}</div>`;
   }
@@ -202,7 +290,7 @@ function renderShipmentQueue(mode) {
 
 function renderShipmentBooking() {
   const grouped = shipmentRows.reduce((acc, row) => {
-    const key = row.forwarderName || 'Unassigned Haulier';
+    const key = hasAssignedHaulier(row) ? row.forwarderName : 'Unassigned Haulier';
     if (!acc[key]) acc[key] = [];
     acc[key].push(row);
     return acc;
@@ -219,15 +307,40 @@ function renderShipmentBooking() {
       .map(row => {
         const shipmentRef = String(row.shipmentID || '').padStart(8, '0');
         const plannedDate = getShipmentPlannedDate(row, 'in-transit');
-        return `<tr class="ps-row booking-row" data-id="${esc(String(row.shipmentID))}"><td class="lg-check-cell"><input type="checkbox" class="booking-check" data-id="${esc(String(row.shipmentID))}"></td><td>${esc(shipmentRef)}</td><td>${esc(formatDisplayDate(plannedDate))}</td><td>${esc(row.trackingNumber || '')}</td><td>${esc(row.destinationName || row.originName || '-')}</td></tr>`;
+        return `<tr class="ps-row booking-row" data-id="${esc(String(row.shipmentID))}" data-haulier-key="${esc(getBookingSelectionKey(row))}"><td class="lg-check-cell"><input type="checkbox" class="booking-check" data-id="${esc(String(row.shipmentID))}" data-haulier-key="${esc(getBookingSelectionKey(row))}"></td><td>${esc(shipmentRef)}</td><td>${esc(formatDisplayDate(plannedDate))}</td><td>${esc(row.trackingNumber || '')}</td><td>${esc(row.destinationName || row.originName || '-')}</td></tr>`;
       }).join('');
 
     return `<div class="ps-section"><div class="ps-section-header"><span class="ps-section-dot ps-section-dot--today"></span><span class="ps-section-title">${esc(name)}</span><span class="ps-section-count">${grouped[name].length}</span><span class="ps-chevron">v</span></div><div class="ps-section-body"><table class="ps-table"><thead><tr><th></th><th>Shipment</th><th>Planned Movement</th><th>Tracking</th><th>Destination</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
   }).join('');
 
-  document.getElementById('result-body').innerHTML = `<div class="lg-actions"><div><div class="lg-selection-title">Awaiting Booking</div><div class="toolbar-hint" id="booking-selection-hint">Select one or more shipments to confirm booking.</div></div><div class="toolbar-spacer"></div><button type="button" class="btn-secondary" id="booking-clear-btn" disabled>Clear Selection</button><button type="button" class="btn-submit" id="booking-confirm-btn" disabled>Confirm Booked</button></div><div id="booking-selection-msg" class="lg-selection-msg hidden"></div><div class="ps-sections">${sections}</div>`;
+  document.getElementById('result-body').innerHTML = `<div class="lg-actions"><div><div class="lg-selection-title">Awaiting Booking</div><div class="toolbar-hint" id="booking-selection-hint">Select one or more shipments for the same haulier, then book them.</div></div><div class="toolbar-spacer"></div><button type="button" class="btn-secondary" id="booking-clear-btn" disabled>Clear Selection</button><button type="button" class="btn-secondary" id="booking-cancel-btn" disabled>Cancel Shipment</button><button type="button" class="btn-submit" id="booking-confirm-btn" disabled>Book</button></div><div id="booking-selection-msg" class="lg-selection-msg hidden"></div><div class="ps-sections">${sections}</div>`;
   bindShipmentBookingEvents();
   updateShipmentBookingUI();
+}
+
+
+function renderCustomsDocuments() {
+  const rows = shipmentRows
+    .slice()
+    .sort((a, b) => {
+      const aDate = new Date(getShipmentPlannedDate(a, 'in-transit') || 0).getTime();
+      const bDate = new Date(getShipmentPlannedDate(b, 'in-transit') || 0).getTime();
+      return aDate - bDate || Number(a.shipmentID || 0) - Number(b.shipmentID || 0);
+    })
+    .map(row => {
+      const shipmentRef = String(row.shipmentID || '').padStart(8, '0');
+      const plannedDate = getShipmentPlannedDate(row, 'in-transit');
+      return `<tr class="ps-row customs-row" data-id="${esc(String(row.shipmentID))}"><td class="lg-check-cell"><input type="checkbox" class="customs-check" data-id="${esc(String(row.shipmentID))}"></td><td>${esc(shipmentRef)}</td><td>${esc(formatDisplayDate(plannedDate))}</td><td>${esc(row.forwarderName || '')}</td><td>${esc(row.destinationName || '-')}</td><td>${esc(row.customsID || '')}</td></tr>`;
+    }).join('');
+
+  const noticeClass = customsBatchNotice?.type === 'success' ? ' lg-selection-msg--success' : '';
+  const noticeHtml = customsBatchNotice
+    ? `<div id="customs-selection-msg" class="lg-selection-msg${noticeClass}">${esc(customsBatchNotice.text)}</div>`
+    : '<div id="customs-selection-msg" class="lg-selection-msg hidden"></div>';
+
+  document.getElementById('result-body').innerHTML = `<div class="lg-actions"><div><div class="lg-selection-title">Customs Documents</div><div class="toolbar-hint" id="customs-selection-hint">Select one or more shipments, then create the customs entries in ClearPort.</div></div><div class="toolbar-spacer"></div><button type="button" class="btn-secondary" id="customs-clear-btn" disabled>Clear Selection</button><button type="button" class="btn-submit" id="customs-create-btn" disabled>Create Customs Entry</button></div>${noticeHtml}<div class="ps-sections"><div class="ps-section"><div class="ps-section-header"><span class="ps-section-dot ps-section-dot--week"></span><span class="ps-section-title">Awaiting Customs</span><span class="ps-section-count">${shipmentRows.length}</span><span class="ps-chevron">v</span></div><div class="ps-section-body"><table class="ps-table"><thead><tr><th></th><th>Shipment</th><th>Planned Movement</th><th>Forwarder</th><th>Destination</th><th>Customs ID</th></tr></thead><tbody>${rows}</tbody></table></div></div></div>`;
+  bindCustomsDocumentsEvents();
+  updateCustomsDocumentsUI();
 }
 
 
@@ -250,7 +363,20 @@ function bindShipmentBookingEvents() {
     document.querySelectorAll('.booking-check').forEach(input => { input.checked = false; });
     updateShipmentBookingUI();
   });
+  document.getElementById('booking-cancel-btn').addEventListener('click', cancelSelectedShipments);
   document.getElementById('booking-confirm-btn').addEventListener('click', confirmShipmentBookings);
+}
+
+
+function bindCustomsDocumentsEvents() {
+  document.querySelectorAll('.ps-section-header').forEach(header => header.addEventListener('click', () => header.closest('.ps-section').classList.toggle('ps-section--collapsed')));
+  document.querySelectorAll('.customs-check').forEach(input => input.addEventListener('change', onCustomsToggle));
+  document.getElementById('customs-clear-btn').addEventListener('click', () => {
+    selectedCustomsShipmentIds = new Set();
+    document.querySelectorAll('.customs-check').forEach(input => { input.checked = false; });
+    updateCustomsDocumentsUI();
+  });
+  document.getElementById('customs-create-btn').addEventListener('click', submitCustomsDocuments);
 }
 
 
@@ -280,6 +406,20 @@ async function updateShipmentQueueStatus(mode, button) {
 
 function onShipmentBookingToggle(e) {
   const id = Number(e.target.dataset.id);
+  const row = shipmentRows.find(item => Number(item.shipmentID) === id);
+  if (!row) return;
+  const lockedRow = getSelectedBookingRows()[0];
+  const lockedKey = lockedRow ? getBookingSelectionKey(lockedRow) : '';
+  const rowKey = getBookingSelectionKey(row);
+  if (e.target.checked && lockedKey && lockedKey !== rowKey) {
+    e.target.checked = false;
+    const msg = document.getElementById('booking-selection-msg');
+    if (msg) {
+      msg.textContent = 'Only shipments for the same haulier can be booked together.';
+      msg.classList.remove('hidden');
+    }
+    return;
+  }
   if (e.target.checked) selectedBookingShipmentIds.add(id);
   else selectedBookingShipmentIds.delete(id);
   updateShipmentBookingUI();
@@ -287,30 +427,133 @@ function onShipmentBookingToggle(e) {
 
 
 function updateShipmentBookingUI() {
+  const rows = getSelectedBookingRows();
+  const lockedRow = rows[0] || null;
+  const lockedHaulier = lockedRow ? (hasAssignedHaulier(lockedRow) ? lockedRow.forwarderName : 'Unassigned Haulier') : '';
+  const lockedKey = lockedRow ? getBookingSelectionKey(lockedRow) : '';
   const hint = document.getElementById('booking-selection-hint');
-  if (hint) hint.textContent = selectedBookingShipmentIds.size ? `${selectedBookingShipmentIds.size} shipment(s) selected for booking confirmation.` : 'Select one or more shipments to confirm booking.';
+  if (hint) hint.textContent = rows.length ? `${rows.length} shipment(s) selected for ${lockedHaulier || 'this haulier'}.` : 'Select one or more shipments for the same haulier, then book them.';
+  const msg = document.getElementById('booking-selection-msg');
+  if (msg && !rows.length) msg.classList.add('hidden');
+  document.querySelectorAll('.booking-row').forEach(row => {
+    const differentHaulier = lockedKey && row.dataset.haulierKey !== lockedKey && !selectedBookingShipmentIds.has(Number(row.dataset.id));
+    row.classList.toggle('lg-row--selected', selectedBookingShipmentIds.has(Number(row.dataset.id)));
+    row.classList.toggle('lg-row--disabled', Boolean(differentHaulier));
+    const checkbox = row.querySelector('.booking-check');
+    if (checkbox) checkbox.disabled = Boolean(differentHaulier);
+  });
   const clearBtn = document.getElementById('booking-clear-btn');
   if (clearBtn) clearBtn.disabled = selectedBookingShipmentIds.size === 0;
+  const cancelBtn = document.getElementById('booking-cancel-btn');
+  if (cancelBtn) cancelBtn.disabled = selectedBookingShipmentIds.size === 0;
   const confirmBtn = document.getElementById('booking-confirm-btn');
   if (confirmBtn) confirmBtn.disabled = selectedBookingShipmentIds.size === 0;
 }
 
 
+function getSelectedCustomsRows() {
+  return shipmentRows.filter(row => selectedCustomsShipmentIds.has(Number(row.shipmentID)));
+}
+
+
+function onCustomsToggle(e) {
+  const id = Number(e.target.dataset.id);
+  if (e.target.checked) selectedCustomsShipmentIds.add(id);
+  else selectedCustomsShipmentIds.delete(id);
+  updateCustomsDocumentsUI();
+}
+
+
+function updateCustomsDocumentsUI() {
+  const rows = getSelectedCustomsRows();
+  const hint = document.getElementById('customs-selection-hint');
+  if (hint) hint.textContent = rows.length
+    ? `${rows.length} shipment(s) selected for customs submission.`
+    : 'Select one or more shipments, then create the customs entries in ClearPort.';
+  document.querySelectorAll('.customs-row').forEach(row => {
+    row.classList.toggle('lg-row--selected', selectedCustomsShipmentIds.has(Number(row.dataset.id)));
+  });
+  const clearBtn = document.getElementById('customs-clear-btn');
+  if (clearBtn) clearBtn.disabled = rows.length === 0;
+  const createBtn = document.getElementById('customs-create-btn');
+  if (createBtn) createBtn.disabled = rows.length === 0;
+}
+
+
 async function confirmShipmentBookings() {
-  const button = document.getElementById('booking-confirm-btn');
+  const rows = getSelectedBookingRows();
+  if (!rows.length) return;
+  const haulier = getSelectedBookingHaulierName();
+  openBookingModal(rows, haulier);
+}
+
+
+async function submitCustomsDocuments() {
+  const rows = getSelectedCustomsRows();
+  if (!rows.length) return;
+  const button = document.getElementById('customs-create-btn');
+  const message = document.getElementById('customs-selection-msg');
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Creating...';
+  if (message) {
+    message.textContent = '';
+    message.classList.add('hidden');
+    message.classList.remove('lg-selection-msg--success');
+  }
+
+  try {
+    const res = await fetch('/api/shipmentmain/customs/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shipmentIDs: rows.map(row => row.shipmentID) }),
+    });
+    const json = await res.json();
+    if (!res.ok && !json.data) throw new Error(json.error || 'Failed to create customs entries.');
+
+    const completed = json.data?.completed || [];
+    const failed = json.data?.failed || [];
+    const completedRefs = completed.map(item => item.shipmentRef).join(', ');
+    const failedRefs = failed.map(item => `${item.shipmentRef}: ${item.error}`).join(' | ');
+    customsBatchNotice = {
+      type: completed.length ? 'success' : 'error',
+      text: [
+        completed.length ? `Completed ${completed.length} shipment(s)${completedRefs ? `: ${completedRefs}` : ''}.` : '',
+        failed.length ? `Failed ${failed.length}: ${failedRefs}` : '',
+      ].filter(Boolean).join(' '),
+    };
+
+    await runCustomsDocuments();
+  } catch (err) {
+    customsBatchNotice = { type: 'error', text: err.message };
+    button.disabled = false;
+    button.textContent = originalText;
+    if (message) {
+      message.textContent = err.message;
+      message.classList.remove('hidden');
+    }
+  }
+}
+
+
+async function cancelSelectedShipments() {
+  const rows = getSelectedBookingRows();
+  if (!rows.length) return;
+  if (!window.confirm(`Cancel ${rows.length} shipment(s)? This will unlink the deliveries and return them to Open Deliveries.`)) return;
+  const button = document.getElementById('booking-cancel-btn');
   const msg = document.getElementById('booking-selection-msg');
   const originalText = button.textContent;
   button.disabled = true;
-  button.textContent = 'Updating...';
+  button.textContent = 'Cancelling...';
   if (msg) msg.classList.add('hidden');
   try {
-    const res = await fetch('/api/shipmentmain/mark-booked', {
+    const res = await fetch('/api/shipmentmain/cancel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shipmentIDs: [...selectedBookingShipmentIds] }),
+      body: JSON.stringify({ shipmentIDs: rows.map(row => row.shipmentID) }),
     });
     const json = await res.json();
-    if (!json.success) throw new Error(json.error || 'Failed to confirm shipment booking');
+    if (!json.success) throw new Error(json.error || 'Failed to cancel shipments.');
     await runShipmentBooking();
   } catch (err) {
     button.disabled = false;
@@ -427,6 +670,121 @@ function updateSelectionUI() {
 }
 
 
+function getBookingRowsWithInputs() {
+  return getSelectedBookingRows().map(row => ({
+    shipmentID: row.shipmentID,
+    shipmentRef: String(row.shipmentID || '').padStart(8, '0'),
+    destinationName: row.destinationName || row.originName || '-',
+    plannedCollection: document.getElementById(`booking-date-${row.shipmentID}`)?.value || '',
+    trackingNumber: document.getElementById(`booking-track-${row.shipmentID}`)?.value.trim() || '',
+    forwarderID: document.getElementById(`booking-forwarder-${row.shipmentID}`)?.value || row.forwarderID || '',
+    forwarderName: document.getElementById(`booking-forwarder-${row.shipmentID}`)?.selectedOptions?.[0]?.textContent?.trim() || row.forwarderName || '',
+  }));
+}
+
+
+async function openBookingModal(rows, haulier) {
+  const isCustomerCollect = isCustomerCollectHaulier(haulier);
+  const isKn = isKnHaulier(haulier);
+  const needsForwarderChoice = rows.some(row => !row.forwarderID || !hasAssignedHaulier(row));
+  const forwarders = needsForwarderChoice ? await loadApprovedForwarders() : [];
+  const title = isCustomerCollect ? 'Customer Collect Booking' : isKn ? 'Kuehne & Nagel Booking' : `Book ${haulier || 'Shipment'}`;
+  const subtitle = isCustomerCollect
+    ? 'Optional tracking and collection dates. Emails will be sent before booking is confirmed.'
+    : isKn
+      ? 'Confirm the collection dates, send the shipments to the KN API, then mark them as booked.'
+      : 'Confirm the tracking number for each shipment, and update collection dates if needed.';
+  const actionLabel = isCustomerCollect ? 'Send Email and Book' : isKn ? 'Send via API and Book' : 'Book';
+  const rowsHtml = rows.map(row => {
+    const shipmentRef = String(row.shipmentID || '').padStart(8, '0');
+    const plannedDate = getShipmentPlannedDate(row, 'in-transit');
+    const forwarderField = row.forwarderID && hasAssignedHaulier(row)
+      ? `${esc(row.forwarderName || '')}`
+      : `<select class="tf-input booking-inline-input" id="booking-forwarder-${esc(String(row.shipmentID))}"><option value="">Select haulier</option>${forwarders.map(item => `<option value="${esc(String(item.forwarderID))}">${esc(item.forwarderName || '')}</option>`).join('')}</select>`;
+    return `<tr><td>${esc(shipmentRef)}</td><td>${esc(row.destinationName || row.originName || '-')}</td><td>${forwarderField}</td><td><input class="tf-input booking-inline-input" type="date" id="booking-date-${esc(String(row.shipmentID))}" value="${esc(plannedDate ? new Date(plannedDate).toISOString().slice(0, 10) : '')}"></td><td><input class="tf-input booking-inline-input" type="text" id="booking-track-${esc(String(row.shipmentID))}" value="${esc(row.trackingNumber || '')}"></td></tr>`;
+  }).join('');
+  const trackingHelp = isCustomerCollect
+    ? 'Tracking number is optional for customer collect shipments.'
+    : isKn
+      ? 'Tracking will be taken from the Kuehne & Nagel API response where available.'
+      : 'Tracking number is required for each shipment before booking can be confirmed.';
+  openModal(`<div class="ps-modal lg-modal"><div class="ps-modal-header"><div><div class="ps-modal-title">${esc(title)}</div><div class="ps-modal-sub">${esc(haulier || 'Unassigned Haulier')} - ${rows.length} shipment(s)</div></div><button class="ps-modal-close" onclick="closePickModal()">x</button></div><div class="ps-modal-body"><div class="toolbar-hint">${esc(subtitle)}</div><table class="ps-table booking-modal-table"><thead><tr><th>Shipment</th><th>Destination</th><th>Haulier</th><th>Planned Collection</th><th>Tracking Number</th></tr></thead><tbody>${rowsHtml}</tbody></table><div class="toolbar-hint booking-help">${esc(trackingHelp)}</div><div id="booking-submit-result"></div></div><div class="ps-modal-actions"><button type="button" class="btn-secondary" onclick="closePickModal()">Cancel</button><button type="button" class="btn-submit" id="booking-submit-btn">${esc(actionLabel)}</button></div></div>`);
+  document.getElementById('booking-submit-btn').addEventListener('click', submitBookingModal);
+}
+
+
+async function submitBookingModal() {
+  const button = document.getElementById('booking-submit-btn');
+  const result = document.getElementById('booking-submit-result');
+  const updates = getBookingRowsWithInputs();
+  button.disabled = true;
+  button.textContent = 'Working...';
+  result.innerHTML = '';
+  try {
+    const missingForwarder = updates.find(item => !item.forwarderID);
+    if (missingForwarder) throw new Error(`Haulier is required for shipment ${missingForwarder.shipmentRef}.`);
+    const successfulUpdates = [];
+    const failedRefs = [];
+
+    for (const item of updates) {
+      try {
+        if (isKnHaulier(item.forwarderName)) {
+          if (!item.plannedCollection) throw new Error('Planned collection date is required.');
+          const response = await fetch(`/api/freight-booking/shipment/${encodeURIComponent(item.shipmentID)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plannedCollection: item.plannedCollection }),
+          });
+          const json = await response.json();
+          if (!response.ok) throw new Error(json.error || 'Failed to send to Kuehne & Nagel.');
+          item.trackingNumber = String(json.trackingNumber || item.trackingNumber || '').trim();
+        } else if (isCustomerCollectHaulier(item.forwarderName)) {
+          const response = await fetch(`/api/shipmentmain/${encodeURIComponent(item.shipmentID)}/send-collection-email`, { method: 'POST' });
+          const json = await response.json();
+          if (!response.ok || !json.success) throw new Error(json.error || 'Failed to send collection email.');
+        } else {
+          if (!item.trackingNumber) throw new Error('Tracking number is required.');
+        }
+        successfulUpdates.push(item);
+      } catch (err) {
+        failedRefs.push(`${item.shipmentRef}: ${err.message}`);
+      }
+    }
+
+    if (!successfulUpdates.length) {
+      throw new Error(`No shipments were booked. ${failedRefs.join(' | ')}`);
+    }
+
+    const res = await fetch('/api/shipmentmain/mark-booked', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shipments: successfulUpdates.map(item => ({
+          shipmentID: item.shipmentID,
+          plannedCollection: item.plannedCollection || null,
+          trackingNumber: item.trackingNumber || '',
+          forwarderID: item.forwarderID || null,
+        })),
+      }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to mark shipments as booked.');
+    await runShipmentBooking();
+    if (failedRefs.length) {
+      result.innerHTML = `<div class="sap-error tf-inline-error">Booked ${successfulUpdates.length} shipment(s). These failed: ${esc(failedRefs.join(' | '))}</div>`;
+      button.disabled = false;
+      button.textContent = 'Book';
+      return;
+    }
+    closePickModal();
+  } catch (err) {
+    result.innerHTML = `<div class="sap-error tf-inline-error">${esc(err.message)}</div>`;
+    button.disabled = false;
+    button.textContent = 'Book';
+  }
+}
+
+
 function buildShipmentDraft() {
   const rows = getSelectedRows();
   const first = rows[0];
@@ -442,11 +800,28 @@ function openModal(html) {
   overlay.innerHTML = html; overlay.classList.remove('hidden');
 }
 function closePickModal() { const overlay = document.getElementById('ps-modal-overlay'); overlay.classList.add('hidden'); overlay.innerHTML = ''; }
+
+
+function onShipmentForwarderModeChange() {
+  const modeSelect = document.getElementById('lg-forwarder-mode');
+  const nameSelect = document.getElementById('lg-forwarder-name');
+  if (!modeSelect || !nameSelect) return;
+  const selectedMode = modeSelect.value;
+  const matches = (allForwarders || []).filter(item => String(item.forwarderMode || '').trim() === selectedMode);
+  const uniqueForwarders = matches.filter((item, index, arr) => arr.findIndex(other => String(other.forwarderName || '').trim() === String(item.forwarderName || '').trim()) === index);
+  nameSelect.innerHTML = `<option value="">Select forwarder</option>${uniqueForwarders.map(item => `<option value="${esc(String(item.forwarderID))}">${esc(String(item.forwarderName || '').trim())}</option>`).join('')}`;
+  nameSelect.disabled = !selectedMode;
+}
+
+
 async function openShipmentModal() {
   if (!await checkSession()) return;
   const rows = getSelectedRows(); if (!rows.length) return;
   const draft = buildShipmentDraft();
-  openModal(`<div class="ps-modal lg-modal"><div class="ps-modal-header"><div><div class="ps-modal-title">Create Shipment</div><div class="ps-modal-sub">${esc(rows[0].destinationName || '')} - ${rows.length} deliveries</div></div><button class="ps-modal-close" onclick="closePickModal()">x</button></div><div class="ps-modal-body"><form id="lg-shipment-form" class="transfer-form"><div class="tf-section-label">Shipment Header</div><div class="tf-row"><div class="tf-field"><label class="tf-label">Planned Collection</label><input class="tf-input" type="date" id="lg-planned" value="${esc(draft.plannedCollection)}"></div><div class="tf-field"><label class="tf-label">Forwarder ID</label><input class="tf-input" type="number" id="lg-forwarder"></div><div class="tf-field"><label class="tf-label">Tracking Number</label><input class="tf-input" type="text" id="lg-tracking"></div><div class="tf-field"><label class="tf-label">Incoterms</label><input class="tf-input" type="text" id="lg-incoterms" value="${esc(draft.incoTerms)}"></div></div><div class="tf-row"><div class="tf-field tf-field--wide"><label class="tf-label">Destination Name</label><input class="tf-input" type="text" id="lg-dest-name" value="${esc(draft.destinationName)}"></div><div class="tf-field tf-field--wide"><label class="tf-label">Destination Street</label><input class="tf-input" type="text" id="lg-dest-street" value="${esc(draft.destinationStreet)}"></div></div><div class="tf-row"><div class="tf-field"><label class="tf-label">City</label><input class="tf-input" type="text" id="lg-dest-city" value="${esc(draft.destinationCity)}"></div><div class="tf-field"><label class="tf-label">Post Code</label><input class="tf-input" type="text" id="lg-dest-postcode" value="${esc(draft.destinationPostCode)}"></div><div class="tf-field"><label class="tf-label">Country</label><input class="tf-input" type="text" id="lg-dest-country" value="${esc(draft.destinationCountry)}"></div></div><div class="tf-row"><label class="lg-flag"><input type="checkbox" id="lg-customs-required"> Customs Required</label><label class="lg-flag"><input type="checkbox" id="lg-customs-complete"> Customs Complete</label></div><div class="tf-section-label">Calculated Totals <span class="tf-locked">Read only</span></div><div class="tf-row"><div class="tf-field"><label class="tf-label">Pallet Count</label><input class="tf-input" readonly value="${esc(draft.palletCount.toFixed(3))}"></div><div class="tf-field"><label class="tf-label">Gross Weight</label><input class="tf-input" readonly value="${esc(draft.grossWeight.toFixed(3))}"></div><div class="tf-field"><label class="tf-label">Volume</label><input class="tf-input" readonly value="${esc(draft.shipmentVolume.toFixed(3))}"></div></div><div id="lg-submit-result"></div></form></div><div class="ps-modal-actions"><button type="button" class="btn-secondary" onclick="closePickModal()">Cancel</button><button type="button" class="btn-submit" id="lg-confirm-btn">Confirm Shipment</button></div></div>`);
+  const forwarders = await loadAllForwarders();
+  const modeOptions = [...new Set(forwarders.map(item => String(item.forwarderMode || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  openModal(`<div class="ps-modal lg-modal"><div class="ps-modal-header"><div><div class="ps-modal-title">Create Shipment</div><div class="ps-modal-sub">${esc(rows[0].destinationName || '')} - ${rows.length} deliveries</div></div><button class="ps-modal-close" onclick="closePickModal()">x</button></div><div class="ps-modal-body"><form id="lg-shipment-form" class="transfer-form"><div class="tf-section-label">Shipment Header</div><div class="tf-row"><div class="tf-field"><label class="tf-label">Planned Collection</label><input class="tf-input" type="date" id="lg-planned" value="${esc(draft.plannedCollection)}"></div><div class="tf-field"><label class="tf-label">Forwarder Mode</label><select class="tf-input" id="lg-forwarder-mode"><option value="">Select mode</option>${modeOptions.map(mode => `<option value="${esc(mode)}">${esc(mode)}</option>`).join('')}</select></div><div class="tf-field"><label class="tf-label">Forwarder Name</label><select class="tf-input" id="lg-forwarder-name" disabled><option value="">Select forwarder</option></select></div><div class="tf-field"><label class="tf-label">Incoterms</label><input class="tf-input" type="text" id="lg-incoterms" value="${esc(draft.incoTerms)}"></div></div><div class="tf-row"><div class="tf-field tf-field--wide"><label class="tf-label">Destination Name</label><input class="tf-input" type="text" id="lg-dest-name" value="${esc(draft.destinationName)}"></div><div class="tf-field tf-field--wide"><label class="tf-label">Destination Street</label><input class="tf-input" type="text" id="lg-dest-street" value="${esc(draft.destinationStreet)}"></div></div><div class="tf-row"><div class="tf-field"><label class="tf-label">City</label><input class="tf-input" type="text" id="lg-dest-city" value="${esc(draft.destinationCity)}"></div><div class="tf-field"><label class="tf-label">Post Code</label><input class="tf-input" type="text" id="lg-dest-postcode" value="${esc(draft.destinationPostCode)}"></div><div class="tf-field"><label class="tf-label">Country</label><input class="tf-input" type="text" id="lg-dest-country" value="${esc(draft.destinationCountry)}"></div></div><div class="tf-row"><label class="lg-flag"><input type="checkbox" id="lg-customs-required"> Customs Required</label><label class="lg-flag"><input type="checkbox" id="lg-customs-complete"> Customs Complete</label></div><div class="tf-section-label">Calculated Totals <span class="tf-locked">Read only</span></div><div class="tf-row"><div class="tf-field"><label class="tf-label">Pallet Count</label><input class="tf-input" readonly value="${esc(draft.palletCount.toFixed(3))}"></div><div class="tf-field"><label class="tf-label">Gross Weight</label><input class="tf-input" readonly value="${esc(draft.grossWeight.toFixed(3))}"></div><div class="tf-field"><label class="tf-label">Volume</label><input class="tf-input" readonly value="${esc(draft.shipmentVolume.toFixed(3))}"></div></div><div id="lg-submit-result"></div></form></div><div class="ps-modal-actions"><button type="button" class="btn-secondary" onclick="closePickModal()">Cancel</button><button type="button" class="btn-submit" id="lg-confirm-btn">Confirm Shipment</button></div></div>`);
+  document.getElementById('lg-forwarder-mode').addEventListener('change', onShipmentForwarderModeChange);
   document.getElementById('lg-confirm-btn').addEventListener('click', submitShipmentCreate);
 }
 async function submitShipmentCreate() {
@@ -454,7 +829,7 @@ async function submitShipmentCreate() {
   const result = document.getElementById('lg-submit-result');
   button.disabled = true; button.textContent = 'Creating...'; result.innerHTML = '';
   try {
-    const payload = { deliveryIDs: [...selectedDeliveryIds], plannedCollection: document.getElementById('lg-planned').value || null, forwarderID: document.getElementById('lg-forwarder').value || null, trackingNumber: document.getElementById('lg-tracking').value.trim(), incoTerms: document.getElementById('lg-incoterms').value.trim(), destinationName: document.getElementById('lg-dest-name').value.trim(), destinationStreet: document.getElementById('lg-dest-street').value.trim(), destinationCity: document.getElementById('lg-dest-city').value.trim(), destinationPostCode: document.getElementById('lg-dest-postcode').value.trim(), destinationCountry: document.getElementById('lg-dest-country').value.trim(), customsRequired: document.getElementById('lg-customs-required').checked, customsComplete: document.getElementById('lg-customs-complete').checked };
+    const payload = { deliveryIDs: [...selectedDeliveryIds], plannedCollection: document.getElementById('lg-planned').value || null, forwarderID: document.getElementById('lg-forwarder-name').value || null, incoTerms: document.getElementById('lg-incoterms').value.trim(), destinationName: document.getElementById('lg-dest-name').value.trim(), destinationStreet: document.getElementById('lg-dest-street').value.trim(), destinationCity: document.getElementById('lg-dest-city').value.trim(), destinationPostCode: document.getElementById('lg-dest-postcode').value.trim(), destinationCountry: document.getElementById('lg-dest-country').value.trim(), customsRequired: document.getElementById('lg-customs-required').checked, customsComplete: document.getElementById('lg-customs-complete').checked };
     const res = await fetch('/api/shipmentmain/create-from-deliveries', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const json = await res.json(); if (!json.success) throw new Error(json.error || 'Failed to create shipment');
     latestShipment = json.data; closePickModal(); await runOpenDeliveries(); showPostCreateModal(json.data);

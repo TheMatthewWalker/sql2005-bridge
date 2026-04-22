@@ -16,7 +16,7 @@ if (!KN_API_URL || !KN_CUSTOMER_ID || !KN_CUSTOMER_KEY) {
 }
 
 // ── Build KN booking payload from DB records ──────────────────────────────────
-function buildBookingPayload(shipment, pallets) {
+function buildBookingPayload(shipment, pallets, options = {}) {
     const cargoItems = pallets.map(p => ({
         description:     p.palletType   || 'Pallet',
         marksAndNumbers: String(p.palletID),
@@ -33,8 +33,9 @@ function buildBookingPayload(shipment, pallets) {
         dimensionsUom:   'MMT',
     }));
 
-    const pickupDate = shipment.plannedCollection
-        ? new Date(shipment.plannedCollection).toISOString().split('T')[0]
+    const pickupSource = options.plannedCollection || shipment.plannedCollection;
+    const pickupDate = pickupSource
+        ? new Date(pickupSource).toISOString().split('T')[0]
         : null;
 
     return {
@@ -102,6 +103,21 @@ function buildBookingPayload(shipment, pallets) {
 
         cargoItems,
     };
+}
+
+
+function extractTrackingNumber(responseData) {
+    if (!responseData || typeof responseData !== 'object') return '';
+    return String(
+        responseData.trackingNumber ||
+        responseData.trackingNo ||
+        responseData.consignmentNumber ||
+        responseData.consignmentNo ||
+        responseData.shipmentNumber ||
+        responseData.bookingID ||
+        responseData.transactionID ||
+        ''
+    ).trim();
 }
 
 
@@ -188,7 +204,9 @@ router.post('/shipment/:shipmentId', async (req, res) => {
         return res.status(500).json({ error: err.message });
     }
 
-    const payload = buildBookingPayload(shipment, pallets);
+    const payload = buildBookingPayload(shipment, pallets, {
+        plannedCollection: req.body?.plannedCollection || null,
+    });
 
     var KN_ACCESS_TOKEN = await getKnAccessToken().then(tokenData => tokenData.access_token);
 
@@ -208,6 +226,7 @@ router.post('/shipment/:shipmentId', async (req, res) => {
             bookingID: knResponse.data?.bookingID ?? null,
             transactionID: knResponse.data?.transactionID ?? null,
             bookingIsSuccessful: knResponse.data?.bookingIsSuccessful ?? null,
+            trackingNumber: extractTrackingNumber(knResponse.data),
             data: knResponse.data
         });
 
