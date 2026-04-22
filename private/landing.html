@@ -9,7 +9,6 @@
 </head>
 <body>
 
-  <!-- HEADER -->
   <header class="header">
     <div class="header-left">
       <div class="brand-icon"><img src="./images/logo32.png" alt="Kongsberg Logo"></div>
@@ -22,12 +21,12 @@
         <div class="user-dot"></div>
         <span id="session-user">Connected</span>
       </div>
+      <button type="button" class="btn-logout btn-gemini" id="btn-gemini-chat">Get Help</button>
       <a href="./rawsql.html" class="btn-logout">SQL Console</a>
       <a href="/logout" class="btn-logout">Sign Out</a>
     </div>
   </header>
 
-  <!-- HERO -->
   <section class="hero">
     <div class="hero-inner">
       <div class="hero-eyebrow">Select your area</div>
@@ -36,13 +35,11 @@
     </div>
   </section>
 
-  <!-- DEPARTMENT GRID -->
   <main class="grid-wrap">
     <div class="dept-grid">
 
       <a href="./logistics.html" class="dept-card" style="--delay:0.05s">
         <div class="dept-icon">
-          <!-- Truck / route icon -->
           <svg viewBox="0 0 28 28" fill="none">
             <rect x="1" y="8" width="17" height="13" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
             <path d="M18 11h5.5l3 5v5H18V11Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
@@ -54,12 +51,11 @@
           <div class="dept-name">Logistics</div>
           <div class="dept-desc">Shipments, routes &amp; carrier management</div>
         </div>
-        <div class="dept-arrow">→</div>
+        <div class="dept-arrow">&rarr;</div>
       </a>
 
       <a href="./warehouse.html" class="dept-card" style="--delay:0.10s">
         <div class="dept-icon">
-          <!-- Warehouse / shelving icon -->
           <svg viewBox="0 0 28 28" fill="none">
             <path d="M2 12L14 4l12 8v14H2V12Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
             <rect x="10" y="16" width="8" height="10" rx="1" stroke="currentColor" stroke-width="1.6"/>
@@ -71,12 +67,11 @@
           <div class="dept-name">Warehouse</div>
           <div class="dept-desc">Stock, inventory &amp; bin locations</div>
         </div>
-        <div class="dept-arrow">→</div>
+        <div class="dept-arrow">&rarr;</div>
       </a>
 
       <a href="./finance.html" class="dept-card" style="--delay:0.15s">
         <div class="dept-icon">
-          <!-- Chart / finance icon -->
           <svg viewBox="0 0 28 28" fill="none">
             <polyline points="2,22 9,14 15,18 26,7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             <line x1="2" y1="26" x2="26" y2="26" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
@@ -86,12 +81,11 @@
           <div class="dept-name">Finance</div>
           <div class="dept-desc">Costs, budgets &amp; financial reporting</div>
         </div>
-        <div class="dept-arrow">→</div>
+        <div class="dept-arrow">&rarr;</div>
       </a>
 
       <a href="./sales.html" class="dept-card" style="--delay:0.20s">
         <div class="dept-icon">
-          <!-- Target / sales icon -->
           <svg viewBox="0 0 28 28" fill="none">
             <circle cx="14" cy="14" r="11" stroke="currentColor" stroke-width="1.8"/>
             <circle cx="14" cy="14" r="6"  stroke="currentColor" stroke-width="1.6"/>
@@ -102,12 +96,11 @@
           <div class="dept-name">Sales</div>
           <div class="dept-desc">Orders, customers &amp; pipeline</div>
         </div>
-        <div class="dept-arrow">→</div>
+        <div class="dept-arrow">&rarr;</div>
       </a>
 
       <a href="./quality.html" class="dept-card" style="--delay:0.25s">
         <div class="dept-icon">
-          <!-- Shield / tick icon -->
           <svg viewBox="0 0 28 28" fill="none">
             <path d="M14 2L4 6v9c0 5.5 4.3 10.4 10 12 5.7-1.6 10-6.5 10-12V6L14 2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
             <polyline points="9,14 12.5,17.5 19,11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -117,12 +110,11 @@
           <div class="dept-name">Quality</div>
           <div class="dept-desc">Inspection, compliance &amp; defect tracking</div>
         </div>
-        <div class="dept-arrow">→</div>
+        <div class="dept-arrow">&rarr;</div>
       </a>
 
       <a href="./engineering.html" class="dept-card" style="--delay:0.30s">
         <div class="dept-icon">
-          <!-- Cog icon -->
           <svg viewBox="0 0 28 28" fill="none">
             <circle cx="14" cy="14" r="4" stroke="currentColor" stroke-width="1.8"/>
             <path d="M14 2v3M14 23v3M2 14h3M23 14h3M5.5 5.5l2.1 2.1M20.4 20.4l2.1 2.1M5.5 22.5l2.1-2.1M20.4 7.6l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -132,12 +124,11 @@
           <div class="dept-name">Engineering</div>
           <div class="dept-desc">Specs, drawings &amp; process control</div>
         </div>
-        <div class="dept-arrow">→</div>
+        <div class="dept-arrow">&rarr;</div>
       </a>
 
       <a href="./management.html" class="dept-card" style="--delay:0.35s">
         <div class="dept-icon">
-          <!-- Dashboard / management icon -->
           <svg viewBox="0 0 28 28" fill="none">
             <rect x="2"  y="2"  width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
             <rect x="16" y="2"  width="10" height="7"  rx="1.5" stroke="currentColor" stroke-width="1.8"/>
@@ -149,10 +140,9 @@
           <div class="dept-name">Management</div>
           <div class="dept-desc">KPIs, overviews &amp; cross-department insight</div>
         </div>
-        <div class="dept-arrow">→</div>
+        <div class="dept-arrow">&rarr;</div>
       </a>
 
-      <!-- Production — links back to existing portal -->
       <a href="./production.html" class="dept-card" style="--delay:0.40s">
         <div class="dept-icon">
           <svg viewBox="0 0 28 28" fill="none">
@@ -165,10 +155,9 @@
           <div class="dept-name">Production</div>
           <div class="dept-desc">Production Traceability and Booking System</div>
         </div>
-        <div class="dept-arrow">→</div>
+        <div class="dept-arrow">&rarr;</div>
       </a>
 
-            <!-- Admin — links back to existing portal -->
       <a href="./admin.html" class="dept-card dept-card--production" style="--delay:0.40s">
         <div class="dept-icon">
           <svg viewBox="0 0 28 28" fill="none">
@@ -182,15 +171,40 @@
           <div class="dept-name">Admin</div>
           <div class="dept-desc">Administration and User Management</div>
         </div>
-        <div class="dept-arrow">→</div>
+        <div class="dept-arrow">&rarr;</div>
       </a>
 
     </div>
   </main>
 
   <footer class="footer">
-    Kongsberg Enterprise Portal &nbsp;·&nbsp; Authorised access only &nbsp;·&nbsp; Session expires after 60 min
+    Kongsberg Enterprise Portal &middot; Authorised access only &middot; Session expires after 60 min
   </footer>
 
+  <div class="gemini-shell hidden" id="gemini-shell">
+    <div class="gemini-window" id="gemini-window">
+      <div class="gemini-header">
+        <div>
+          <div class="gemini-title">Kongsberg</div>
+          <div class="gemini-subtitle">Portal assistant</div>
+        </div>
+        <button type="button" class="gemini-close" id="gemini-close" aria-label="Close Gemini chat">&times;</button>
+      </div>
+      <div class="gemini-messages" id="gemini-messages">
+        <div class="gemini-row gemini-row--assistant">
+          <div class="gemini-bubble gemini-bubble--assistant">Hello! How can I help you today?</div>
+        </div>
+      </div>
+      <form class="gemini-form" id="gemini-form">
+        <textarea id="gemini-input" class="gemini-input" rows="3" placeholder="Ask something..." required></textarea>
+        <div class="gemini-actions">
+          <div class="gemini-status" id="gemini-status"></div>
+          <button type="submit" class="gemini-send" id="gemini-send">Send</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="./js/landing.js"></script>
 </body>
 </html>

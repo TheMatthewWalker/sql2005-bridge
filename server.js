@@ -35,6 +35,7 @@ import filterRecordsRoutes     from './routes/filterrecords.js';
 import exportXlsxRoutes        from './routes/exportxlsx.js';
 import reportRoutes            from './routes/reports.js';
 import sapRoutes               from "./routes/sap.js";
+import geminiRoutes            from './routes/gemini.js';
 import freightBookingRoutes    from './routes/freightbooking.js';
 import clearportExportRoutes  from './routes/clearportexport.js';
 
@@ -53,8 +54,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 100, // limit each IP to X requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." }
 });
 
 // apply rate limiter to all requests
@@ -107,6 +111,7 @@ app.use('/api/filter-records', requireLogin,    filterRecordsRoutes);
 app.use('/api/export-xlsx', requireLogin,       exportXlsxRoutes);
 app.use('/api/reports', requireLogin,           reportRoutes);
 app.use('/api/sap', requireLogin,               sapRoutes);
+app.use('/api/gemini', requireLogin,            geminiRoutes);
 app.use('/api/freight-booking', requireLogin,   freightBookingRoutes);
 app.use('/api/clearport',      requireLogin,   clearportExportRoutes);
 

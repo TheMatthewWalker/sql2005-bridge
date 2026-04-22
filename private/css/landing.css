@@ -103,6 +103,8 @@ body::before {
 }
 .btn-logout:hover { border-color: var(--error); color: var(--error); }
 
+.btn-gemini:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ── HERO ────────────────────────────────────────────────────────────────── */
 .hero {
   position: relative; z-index: 1;
@@ -285,4 +287,177 @@ body::before {
   letter-spacing: 0.5px;
   border-top: 1px solid var(--border);
   background: var(--surface);
+}
+
+.gemini-shell {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 240;
+}
+
+.gemini-window {
+  width: min(380px, calc(100vw - 32px));
+  height: min(520px, calc(100vh - 110px));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 48px rgba(30,45,69,0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gemini-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--sidebar-bg), #29456F);
+}
+
+.gemini-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.gemini-subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: rgba(148,168,194,0.85);
+  margin-top: 3px;
+}
+
+.gemini-close {
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.8);
+  font-size: 22px;
+  cursor: pointer;
+}
+.gemini-close:hover { color: #fff; }
+
+.gemini-messages {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(37,99,235,0.03), rgba(255,255,255,0));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gemini-row {
+  display: flex;
+}
+
+.gemini-row--user { justify-content: flex-end; }
+.gemini-row--assistant { justify-content: flex-start; }
+
+.gemini-bubble {
+  max-width: 88%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  line-height: 1.5;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.gemini-bubble--assistant {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.gemini-bubble--user {
+  background: var(--accent);
+  color: #fff;
+}
+
+.gemini-form {
+  border-top: 1px solid var(--border);
+  padding: 14px;
+  background: var(--surface);
+}
+
+.gemini-input {
+  width: 100%;
+  resize: none;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface2);
+  padding: 11px 12px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+}
+
+.gemini-input:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.gemini-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.gemini-status {
+  flex: 1;
+  min-height: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.gemini-send {
+  border: none;
+  border-radius: 10px;
+  padding: 9px 16px;
+  background: var(--accent);
+  color: #fff;
+  font-family: 'Manrope', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gemini-send:hover { background: var(--accent2); }
+.gemini-send:disabled { opacity: 0.55; cursor: default; }
+
+.hidden { display: none !important; }
+
+@media (max-width: 720px) {
+  .header {
+    padding: 0 16px;
+    height: auto;
+    min-height: 52px;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .gemini-shell {
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+  }
+
+  .gemini-window {
+    width: 100%;
+    height: min(70vh, 520px);
+  }
 }

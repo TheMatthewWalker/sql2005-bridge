@@ -727,6 +727,8 @@ body::before {
   text-decoration: none;
 }
 .lg-doc-link:hover { text-decoration: underline; }
+.shipment-action-cell { width: 170px; }
+.shipment-action-btn { min-width: 140px; }
 
 @media (max-width: 960px) {
   .tile-grid,

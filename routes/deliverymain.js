@@ -140,11 +140,12 @@ router.get('/completed-unshipped', async (req, res) => {
                            CAST(ISNULL(dm.palletCount, 0) AS decimal(18,3)) AS palletCount,
                            CAST(ISNULL(dm.deliveryVolume, 0) AS decimal(18,3)) AS deliveryVolume,
                            d.destinationName, d.destinationStreet, d.destinationCity,
-                           d.destinationPostCode, d.destinationCountry, d.destinationEmail,
+                           d.destinationPostCode, d.destinationCountry, e.address,
                            d.defaultIncoterms
                     FROM Logistics.dbo.DeliveryMain dm
                     LEFT JOIN Logistics.dbo.Destinations d ON dm.customerID = d.destinationID
                     LEFT JOIN Logistics.dbo.ShipmentLink sl ON sl.deliveryID = dm.deliveryID
+                    LEFT JOIN Logistics.dbo.Email e ON e.ID = dm.customerID
                     WHERE dm.completionStatus = 1
                       AND ISNULL(dm.deliveryCancelled, 0) = 0
                       AND sl.deliveryID IS NULL

@@ -67,37 +67,48 @@
           <div class="tile-desc">Completed picksheets ready to group into a shipment</div>
         </div>
 
-        <div class="sap-tile sap-tile--placeholder" data-fn="goodsMovement">
+        <div class="sap-tile sap-tile--live" data-fn="inboundShipments">
           <div class="tile-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
               <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>
           </div>
-          <span class="tile-badge tile-badge--soon">SOON</span>
-          <div class="tile-title">Goods Movement</div>
-          <div class="tile-desc">Inbound and outbound material movement documents</div>
+          <span class="tile-badge tile-badge--live">LIVE</span>
+          <div class="tile-title">Inbound</div>
+          <div class="tile-desc">Collected shipments due to arrive at Kongsberg</div>
         </div>
 
-        <div class="sap-tile sap-tile--placeholder" data-fn="transportOrders">
+        <div class="sap-tile sap-tile--live" data-fn="inTransitShipments">
           <div class="tile-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 17h1m16 0h1M5 17H4a1 1 0 01-1-1V5a1 1 0 011-1h11l5 5v7a1 1 0 01-1 1h-1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/>
             </svg>
           </div>
-          <span class="tile-badge tile-badge--soon">SOON</span>
-          <div class="tile-title">Transport Orders</div>
-          <div class="tile-desc">Freight and carrier transport order status</div>
+          <span class="tile-badge tile-badge--live">LIVE</span>
+          <div class="tile-title">In Transit</div>
+          <div class="tile-desc">Outbound shipments collected and not yet delivered</div>
         </div>
 
-        <div class="sap-tile sap-tile--placeholder" data-fn="carrierRates">
+        <div class="sap-tile sap-tile--live" data-fn="awaitingCollection">
           <div class="tile-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
             </svg>
           </div>
-          <span class="tile-badge tile-badge--soon">SOON</span>
-          <div class="tile-title">Carrier Rates</div>
-          <div class="tile-desc">Freight rate conditions and carrier agreements</div>
+          <span class="tile-badge tile-badge--live">LIVE</span>
+          <div class="tile-title">Awaiting Collection</div>
+          <div class="tile-desc">Shipments waiting to leave Kongsberg</div>
+        </div>
+
+        <div class="sap-tile sap-tile--live" data-fn="awaitingBooking">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 7h16M7 3v8M17 3v8M5 11h14a1 1 0 011 1v7a2 2 0 01-2 2H6a2 2 0 01-2-2v-7a1 1 0 011-1z"/><path d="M9 15h6"/>
+            </svg>
+          </div>
+          <span class="tile-badge tile-badge--live">LIVE</span>
+          <div class="tile-title">Awaiting Booking</div>
+          <div class="tile-desc">Shipments with a forwarder assigned that still need booking</div>
         </div>
 
         <div class="sap-tile sap-tile--placeholder" data-fn="customsDocs">
