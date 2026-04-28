@@ -7,6 +7,7 @@ import path from 'path';
 import net from 'net';
 import tls from 'tls';
 import { sqlConfig } from '../server.js';
+import e from 'express';
 
 const router = express.Router();
 const getPool = async () => await sql.connect(sqlConfig);
@@ -40,6 +41,14 @@ function toNullableInteger(value) {
 
 function toDecimal(value) {
   const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+
+// SAP returns numbers in European locale format, e.g. "16.676,20" (. = thousands, , = decimal)
+function parseEuropeanDecimal(value) {
+  const str = String(value ?? '').trim();
+  const parsed = Number.parseFloat(str.replace(/\./g, '').replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
@@ -114,7 +123,7 @@ function getLogisticsSettings() {
   return {
     exportRoot: process.env.LOGISTICS_EXPORT_ROOT || logistics.exportRoot || path.join(process.cwd(), 'exports', 'customer-invoices'),
     originID: toNullableInteger(process.env.LOGISTICS_ORIGIN_ID ?? logistics.originID),
-    originName: process.env.LOGISTICS_ORIGIN_NAME || logistics.originName || 'Kongsberg Automotive',
+    originName: process.env.LOGISTICS_ORIGIN_NAME || logistics.originName || 'Kongsberg Actuation System Ltd',
     originStreet: process.env.LOGISTICS_ORIGIN_STREET || logistics.originStreet || 'Euroflex Centre, Foxbridge Way',
     originCity: process.env.LOGISTICS_ORIGIN_CITY || logistics.originCity || 'Normanton',
     originPostCode: process.env.LOGISTICS_ORIGIN_POSTCODE || logistics.originPostCode || 'WF6 1TN',
@@ -144,10 +153,11 @@ function getClearPortSettings() {
     apiToken: process.env.CLEARPORT_API_TOKEN || clearport.apiToken || '',
     sandbox: toBool(process.env.CLEARPORT_SANDBOX ?? clearport.sandbox),
     defaultCommodityCode: process.env.CLEARPORT_DEFAULT_COMMODITY_CODE || clearport.defaultCommodityCode || '39173900',
-    defaultProcedure: process.env.CLEARPORT_DEFAULT_PROCEDURE || clearport.defaultProcedure || '1000',
+    defaultProcedure: process.env.CLEARPORT_DEFAULT_PROCEDURE || clearport.defaultProcedure || '1040',
+    defaultAdditionalProcedure: process.env.CLEARPORT_DEFAULT_ADDITIONAL_PROCEDURE || clearport.defaultAdditionalProcedure || '000',
     defaultNatureOfTransaction: process.env.CLEARPORT_DEFAULT_NATURE || clearport.defaultNatureOfTransaction || '11',
     defaultCurrency: process.env.CLEARPORT_DEFAULT_CURRENCY || clearport.defaultCurrency || 'GBP',
-    defaultPackageType: process.env.CLEARPORT_DEFAULT_PACKAGE_TYPE || clearport.defaultPackageType || 'PK',
+    defaultPackageType: process.env.CLEARPORT_DEFAULT_PACKAGE_TYPE || clearport.defaultPackageType || 'PX',
     ddpConsignee: hasDdpConfig ? {
       name: String(ddpConf.name || '').trim() || null,
       streetAndNumber: String(ddpConf.streetAndNumber || '').trim() || null,
@@ -155,6 +165,17 @@ function getClearPortSettings() {
       postcode: String(ddpConf.postcode || '').trim() || null,
       countryCode: normalizeCountryCode(ddpConf.countryCode, 'GB'),
     } : null,
+    eori:                                        process.env.CLEARPORT_EORI                                        || clearport.eori                                        || 'GB214987833000',
+    locationOfGoods:                             process.env.CLEARPORT_LOCATION_OF_GOODS                           || clearport.locationOfGoods                             || 'GBAUDEUDEUDEUGVM',
+    customsOfficeOfExit:                         process.env.CLEARPORT_CUSTOMS_OFFICE_OF_EXIT                      || clearport.customsOfficeOfExit                         || 'GB000060',
+    rrs01Description:                            process.env.CLEARPORT_RRS01_DESCRIPTION                           || clearport.rrs01Description                            || 'Haulier',
+    modeOfTransportAtBorder:                     Number(process.env.CLEARPORT_MODE_OF_TRANSPORT_AT_BORDER          ?? clearport.modeOfTransportAtBorder                    ?? 6),
+    inlandModeOfTransport:                       Number(process.env.CLEARPORT_INLAND_MODE_OF_TRANSPORT             ?? clearport.inlandModeOfTransport                      ?? 3),
+    typeOfTransportAtDeparture:                  Number(process.env.CLEARPORT_TYPE_OF_TRANSPORT_AT_DEPARTURE       ?? clearport.typeOfTransportAtDeparture                 ?? 30),
+    identityOfTransportAtDeparture:              process.env.CLEARPORT_IDENTITY_OF_TRANSPORT_AT_DEPARTURE          || clearport.identityOfTransportAtDeparture               || 'UNKNOWN',
+    typeOfActiveMeansOfTransportAtBorder:        Number(process.env.CLEARPORT_TYPE_OF_ACTIVE_MEANS_AT_BORDER       ?? clearport.typeOfActiveMeansOfTransportAtBorder        ?? 6),
+    identityOfActiveMeansOfTransportAtBorder:    process.env.CLEARPORT_IDENTITY_OF_ACTIVE_MEANS_AT_BORDER          || clearport.identityOfActiveMeansOfTransportAtBorder     || 'UNKNOWN',
+    nationalityOfActiveMeansOfTransportAtBorder: process.env.CLEARPORT_NATIONALITY_OF_ACTIVE_MEANS_AT_BORDER       || clearport.nationalityOfActiveMeansOfTransportAtBorder  || 'GB',
   };
 }
 
@@ -426,6 +447,117 @@ function createShipmentPackingListPdfBuffer(context) {
   return buildPdfFromPages(pageStreams);
 }
 
+function createLoadingListPdfBuffer(shipmentsData) {
+  const palette = {
+    navy:  hexToRgb('#0f2742'),
+    steel: hexToRgb('#5b7088'),
+    light: hexToRgb('#e8eef5'),
+    soft:  hexToRgb('#f7f9fc'),
+    text:  hexToRgb('#1c2733'),
+    white: hexToRgb('#ffffff'),
+    line:  hexToRgb('#c7d3df'),
+  };
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-GB');
+  const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  const drawText = (parts, x, y, text, size = 10, font = 'F1', color = palette.text) => {
+    const [r, g, b] = color;
+    parts.push(`BT /${font} ${size} Tf ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg 1 0 0 1 ${x} ${y} Tm (${escapePdfText(text)}) Tj ET`);
+  };
+  const drawRect = (parts, x, y, w, h, color, fill = true) => {
+    const [r, g, b] = color;
+    parts.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} ${fill ? 'rg' : 'RG'} ${x} ${y} ${w} ${h} re ${fill ? 'f' : 'S'}`);
+  };
+  const drawLine = (parts, x1, y1, x2, y2, color = palette.line, width = 0.5) => {
+    const [r, g, b] = color;
+    parts.push(`${width} w ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} RG ${x1} ${y1} m ${x2} ${y2} l S`);
+  };
+  const drawPageHeader = (parts, pageNum) => {
+    drawRect(parts, 0, 800, 595, 42, palette.navy, true);
+    drawText(parts, 36, 820, 'Kongsberg Automotive — Loading List', 13, 'F2', palette.white);
+    drawText(parts, 36, 804, `Generated: ${dateStr} ${timeStr}`, 8.5, 'F1', palette.white);
+    drawText(parts, 500, 812, `Page ${pageNum}`, 8.5, 'F1', palette.white);
+  };
+  const drawShipmentBand = (parts, y, shipment) => {
+    const ref = formatShipmentRef(shipment.shipmentID);
+    const planned = shipment.plannedCollection ? new Date(shipment.plannedCollection).toLocaleDateString('en-GB') : '—';
+    drawRect(parts, 36, y, 523, 20, palette.light, true);
+    drawLine(parts, 36, y, 559, y, palette.navy, 1);
+    drawText(parts, 42, y + 7,  `Shipment ${ref}`,                                              9, 'F2', palette.navy);
+    drawText(parts, 155, y + 7, `Dest: ${String(shipment.destinationName || '—').slice(0, 28)}`, 8, 'F1', palette.steel);
+    drawText(parts, 355, y + 7, `Haulier: ${String(shipment.forwarderName || '—').slice(0, 18)}`, 8, 'F1', palette.steel);
+    drawText(parts, 475, y + 7, `Planned: ${planned}`,                                           8, 'F1', palette.steel);
+  };
+  const drawColHeaders = (parts, y) => {
+    drawRect(parts, 36, y, 523, 16, palette.navy, true);
+    [['Pallet ID', 42], ['Type', 120], ['Location', 195], ['Gross Wt', 305], ['Dimensions (L×W×H mm)', 385]].forEach(([label, x]) =>
+      drawText(parts, x, y + 5, label, 7.5, 'F2', palette.white));
+  };
+
+  // Flatten all items into a printable sequence
+  const allItems = [];
+  for (const { shipment, pallets } of shipmentsData) {
+    allItems.push({ kind: 'shipment', shipment });
+    allItems.push({ kind: 'colheader' });
+    pallets.forEach(pallet => allItems.push({ kind: 'pallet', pallet }));
+    if (pallets.length === 0) allItems.push({ kind: 'empty' });
+    allItems.push({ kind: 'gap' });
+  }
+
+  const HEIGHTS = { shipment: 22, colheader: 16, pallet: 15, empty: 15, gap: 10 };
+  const TOP_Y   = 790;
+  const BOT_Y   = 55;
+
+  const pageStreams = [];
+  let parts    = [];
+  let y        = TOP_Y;
+  let pageNum  = 1;
+  let rowIndex = 0;
+
+  drawPageHeader(parts, pageNum);
+
+  const newPage = () => {
+    pageStreams.push(parts.join('\n'));
+    parts = [];
+    pageNum++;
+    y = TOP_Y;
+    drawPageHeader(parts, pageNum);
+  };
+
+  for (const item of allItems) {
+    const h = HEIGHTS[item.kind] || 15;
+    // Keep shipment band + colheader + at least one row together
+    const minHeight = item.kind === 'shipment' ? HEIGHTS.shipment + HEIGHTS.colheader + HEIGHTS.pallet : h;
+    if (y - minHeight < BOT_Y) newPage();
+    y -= h;
+
+    if (item.kind === 'shipment') {
+      drawShipmentBand(parts, y, item.shipment);
+    } else if (item.kind === 'colheader') {
+      drawColHeaders(parts, y);
+    } else if (item.kind === 'pallet') {
+      const { pallet } = item;
+      if ((rowIndex % 2) === 0) drawRect(parts, 36, y, 523, 15, palette.soft, true);
+      drawText(parts, 42,  y + 4, String(pallet.palletID    || ''),  8);
+      drawText(parts, 120, y + 4, String(pallet.palletType  || ''),  8);
+      drawText(parts, 195, y + 4, String(pallet.palletLocation || '—'), 8);
+      drawText(parts, 305, y + 4, `${formatDecimal(pallet.grossWeight)} kg`, 8);
+      drawText(parts, 385, y + 4, `${pallet.palletLength || 0} × ${pallet.palletWidth || 0} × ${pallet.palletHeight || 0}`, 8);
+      drawLine(parts, 36, y, 559, y);
+      rowIndex++;
+    } else if (item.kind === 'empty') {
+      drawText(parts, 42, y + 4, 'No pallets linked to this shipment.', 8.5, 'F1', palette.steel);
+    }
+    // 'gap' is just space — nothing drawn
+  }
+
+  pageStreams.push(parts.join('\n'));
+  return buildPdfFromPages(pageStreams);
+}
+
+
 function createSimplePdfBuffer(title, lines, fontBase = 'Helvetica') {
   const allLines = [String(title || '').trim(), '', ...lines.map(line => String(line ?? ''))];
   const pages = [];
@@ -517,6 +649,7 @@ function buildClearPortShipmentPayload(context, sapData) {
   const originCountry = normalizeCountryCode(shipment.originCountry, 'GB');
   const destinationCountry = normalizeCountryCode(shipment.destinationCountry, 'GB');
   const exporter = toNameAndAddress(shipment.originName, shipment.originStreet, shipment.originCity, shipment.originPostCode, shipment.originCountry);
+  const declarant = toNameAndAddress(process.env.LOGISTICS_ORIGIN_NAME, process.env.LOGISTICS_ORIGIN_STREET, process.env.LOGISTICS_ORIGIN_CITY, process.env.LOGISTICS_ORIGIN_POSTCODE, process.env.LOGISTICS_ORIGIN_COUNTRY);
   const destinationConsignee = toNameAndAddress(shipment.destinationName, shipment.destinationStreet, shipment.destinationCity, shipment.destinationPostCode, shipment.destinationCountry);
   const carrier = shipment.forwarderName ? toNameAndAddress(shipment.forwarderName, '', '', '', shipment.originCountry) : null;
 
@@ -525,10 +658,16 @@ function buildClearPortShipmentPayload(context, sapData) {
   const vbfaMap = new Map(vbfaData.map(r => [`${r.deliveryNumber}-${r.itemNumber}`, r]));
   const likpMap = new Map(likpData.map(r => [String(r.deliveryNumber || '').trim(), r]));
 
-  // Map SAP delivery number back to our DB delivery row (SAP prefixes "00")
+  // Map SAP delivery number back to our DB delivery row.
+  // SAP delivery numbers can come back in several formats depending on the SAP server:
+  //   plain ID ("12345"), "00" prefix ("0012345"), or 10-char zero-padded ("0000012345").
+  // Index under all three so the lookup is format-agnostic.
   const deliveryBySapNumber = new Map();
   for (const delivery of deliveries) {
-    deliveryBySapNumber.set('00' + String(delivery.deliveryID), delivery);
+    const id = String(delivery.deliveryID);
+    deliveryBySapNumber.set(id, delivery);
+    deliveryBySapNumber.set('00' + id, delivery);
+    deliveryBySapNumber.set(id.padStart(10, '0'), delivery);
   }
 
   // Count LIPS rows per SAP delivery for proportional weight/pallet distribution
@@ -545,63 +684,75 @@ function buildClearPortShipmentPayload(context, sapData) {
     const delivery = deliveryBySapNumber.get(line.deliveryNumber);
     const linesForDelivery = lipsCountByDelivery.get(line.deliveryNumber) || 1;
 
-    const commodityCode = String(marc.commodityCode || clearPort.defaultCommodityCode || '').trim();
-    const countryOfOrigin = normalizeCountryCode(marc.countryOfOrigin, originCountry);
-    const incoterms = String(likp.incoterms || shipment.incoTerms || '').trim().toUpperCase();
-    const consigneeCode = String(likp.consigneeCode || '').trim();
-    const invoiceNumber = String(vbfa.invoiceNumber || '').trim();
-
     return {
-      invoiceNumber,
-      consigneeCode,
-      commodityCode,
-      countryOfOrigin,
-      incoterms,
-      statisticalValue: Number(vbfa.statisticalValue || 0),
-      grossMass: delivery ? toDecimal(delivery.grossWeight) / linesForDelivery : 0,
-      netMass: delivery ? toDecimal(delivery.netWeight) / linesForDelivery : 0,
-      packageCount: delivery ? toDecimal(delivery.palletCount) / linesForDelivery : 0,
+      deliveryNumber:   line.deliveryNumber,
+      invoiceNumber:    String(vbfa.invoiceNumber || '').trim(),
+      commodityCode:    String(marc.commodityCode || clearPort.defaultCommodityCode || '').trim(),
+      countryOfOrigin:  normalizeCountryCode(marc.countryOfOrigin, originCountry),
+      incoterms:        String(likp.incoterms || shipment.incoTerms || '').trim().toUpperCase(),
+      statisticalValue: parseEuropeanDecimal(vbfa.statisticalValue),
+      grossMass:        delivery ? toDecimal(delivery.grossWeight) / linesForDelivery : 0,
+      netMass:          delivery ? toDecimal(delivery.netWeight)   / linesForDelivery : 0,
+      packageCount:     delivery ? toDecimal(delivery.palletCount) / linesForDelivery : 0,
     };
   });
 
-  // Group by (invoiceNumber, consigneeCode, commodityCode, countryOfOrigin, incoterms)
-  // This mirrors the VB sqlgroup() GROUP BY which defines the ClearPort item granularity
+  // Group by delivery number then commodity code, collecting all invoice numbers per group
   const groups = new Map();
   for (const line of enrichedLines) {
-    const key = `${line.invoiceNumber}|${line.consigneeCode}|${line.commodityCode}|${line.countryOfOrigin}|${line.incoterms}`;
+    const key = `${line.deliveryNumber}|${line.commodityCode}`;
     if (!groups.has(key)) {
-      groups.set(key, { ...line, statisticalValue: 0, grossMass: 0, netMass: 0, packageCount: 0 });
+      groups.set(key, {
+        deliveryNumber:  line.deliveryNumber,
+        commodityCode:   line.commodityCode,
+        countryOfOrigin: line.countryOfOrigin,
+        incoterms:       line.incoterms,
+        invoiceNumbers:  new Set(),
+        statisticalValue: 0,
+        grossMass:        0,
+        netMass:          0,
+        packageCount:     0,
+      });
     }
     const group = groups.get(key);
+    if (line.invoiceNumber) group.invoiceNumbers.add(line.invoiceNumber);
     group.statisticalValue += line.statisticalValue;
-    group.grossMass += line.grossMass;
-    group.netMass += line.netMass;
-    group.packageCount += line.packageCount;
+    group.grossMass        += line.grossMass;
+    group.netMass          += line.netMass;
+    group.packageCount     += line.packageCount;
   }
 
   const items = Array.from(groups.values()).map((group, index) => {
     const isDdpItem = group.incoterms === 'DDP';
     const itemConsignee = isDdpItem && clearPort.ddpConsignee ? clearPort.ddpConsignee : destinationConsignee;
+    const previousDocuments = [...group.invoiceNumbers].map(inv => ({
+      category:          'Z',
+      type:              '380',
+      documentReference: inv,
+      //goodsItemIdentifier: '',
+    }));
 
     return {
-      correlationId: `${shipmentRef}-${String(index + 1).padStart(3, '0')}`,
-      procedure: clearPort.defaultProcedure,
-      referenceNumber: group.invoiceNumber || shipmentRef,
-      consignee: itemConsignee,
+      correlationId:    `${shipmentRef}-${String(index + 1).padStart(3, '0')}`,
+      referenceNumber:  group.deliveryNumber,
+      commodityCode:                group.commodityCode,
+      procedure:        clearPort.defaultProcedure,
+      additionalProcedures:        clearPort.defaultAdditionalProcedure,
+      //consignee:        itemConsignee,
       countryOfDestination: destinationCountry,
-      countryOfOrigin: group.countryOfOrigin,
-      netMass: group.netMass,
-      grossMass: group.grossMass,
-      descriptionOfGoods: `${group.commodityCode} - Automotive Parts`,
+      countryOfOrigin:  group.countryOfOrigin,
+      netMass:          group.netMass,
+      grossMass:        group.grossMass,
+      descriptionOfGoods: `PTFE Hose`,
       packages: [{
-        type: clearPort.defaultPackageType,
-        number: Math.max(1, Math.round(group.packageCount)),
-        shippingMarks: shipmentRef,
+        type:          clearPort.defaultPackageType,
+        number:        Math.max(1, Math.round(group.packageCount)),
+        shippingMarks: 'As Addressed',
       }],
-      commodityCode: group.commodityCode,
-      natureOfTransaction: clearPort.defaultNatureOfTransaction,
-      statisticalValue: Math.max(1, group.statisticalValue),
+      natureOfTransaction:          clearPort.defaultNatureOfTransaction,
+      statisticalValue:             Math.round(group.statisticalValue, 2),
       statisticalValueCurrencyCode: clearPort.defaultCurrency,
+      previousDocuments,
       additionalInformation: [],
     };
   });
@@ -609,30 +760,46 @@ function buildClearPortShipmentPayload(context, sapData) {
   // Header-level consignee: DDP if all items are DDP, otherwise destination
   const allDdp = items.length > 0 && enrichedLines.every(l => l.incoterms === 'DDP');
   const headerConsignee = allDdp && clearPort.ddpConsignee ? clearPort.ddpConsignee : destinationConsignee;
-  const totalInvoice = Math.max(1, enrichedLines.reduce((sum, l) => sum + l.statisticalValue, 0));
+  const totalInvoice = Math.round(enrichedLines.reduce((sum, l) => sum + l.statisticalValue, 0), 2);
 
   return {
-    sandbox: clearPort.sandbox,
-    correlationId: shipment.customsID || `SHIP-${shipmentRef}-${Date.now()}`,
-    externalSystemLink: `/private/logistics.html?shipment=${encodeURIComponent(shipment.shipmentID)}`,
-    category: 'EXPORT',
-    declarationType: 'EXA',
-    referenceNumber: shipmentRef,
-    lrn: shipmentRef,
+    sandbox:              clearPort.sandbox,
+    correlationId:        `${shipmentRef}-${Date.now()}`,
+    externalSystemLink:   `/private/logistics.html?shipment=${encodeURIComponent(shipment.shipmentID)}`,
+    category:             'B1',
+    declarationType:      'EXA',
+    referenceNumber:      shipmentRef,
+    lrn:                  shipmentRef,
+    ducr:                 '6' + process.env.CLEARPORT_EORI + '-' + shipmentRef,
     exporter,
-    consignee: headerConsignee,
-    carrier,
-    transportChargesMethodOfPayment: 'A',
+    exporterIdentificationNumber: clearPort.eori,
+    consignee:            headerConsignee,
+    declarant,
+    declarantIdentificationNumber: clearPort.eori,
+    representativeStatusCode: 2,
+    //carrier,
+    transportChargesMethodOfPayment: '',
     totalInvoice,
-    totalInvoiceCurrencyCode: clearPort.defaultCurrency,
-    countryOfDestination: destinationCountry,
-    countryOfDispatch: originCountry,
-    locationOfGoods: [shipment.originStreet, shipment.originCity, shipment.originPostCode].filter(Boolean).join(', ') || shipment.originName || null,
-    totalGrossMass: toDecimal(shipment.grossWeight),
-    totalNetMass: toDecimal(shipment.netWeight),
-    totalPackages: Math.max(1, Math.round(toDecimal(shipment.palletCount))),
-    containerised: false,
+    totalInvoiceCurrencyCode:        clearPort.defaultCurrency,
+    countryOfDestination:            destinationCountry,
+    countryOfDispatch:               originCountry,
+    locationOfGoods:                 clearPort.locationOfGoods,
+    customsOfficeOfExit:             clearPort.customsOfficeOfExit,
+    totalGrossMass:   toDecimal(shipment.grossWeight),
+    totalNetMass:     toDecimal(shipment.netWeight),
+    totalPackages:    Math.max(1, Math.round(toDecimal(shipment.palletCount))),
+    containerised:    false,
     natureOfTransaction: clearPort.defaultNatureOfTransaction,
+    rrs01:            true,
+    rrs01Description: clearPort.rrs01Description,
+    modeOfTransportAtBorder:                      clearPort.modeOfTransportAtBorder,
+    inlandModeOfTransport:                        clearPort.inlandModeOfTransport,
+    typeOfTransportAtDeparture:                   clearPort.typeOfTransportAtDeparture,
+    identityOfTransportAtDeparture:               clearPort.identityOfTransportAtDeparture,
+    typeOfActiveMeansOfTransportAtBorder:         clearPort.typeOfActiveMeansOfTransportAtBorder,
+    identityOfActiveMeansOfTransportAtBorder:     clearPort.identityOfActiveMeansOfTransportAtBorder,
+    nationalityOfActiveMeansOfTransportAtBorder:  clearPort.nationalityOfActiveMeansOfTransportAtBorder,
+    holdersOfAuthorisation: [{ authorisationTypeCode: 'EXRR', identifier: clearPort.eori }],
     items,
   };
 }
@@ -675,6 +842,11 @@ async function fetchSapCustomsData(deliveries, req) {
   const lipsData = unwrapSapArray(lipsBody);
   const likpData = unwrapSapArray(likpBody);
 
+  console.group('[SAP customs] Round 1 results');
+  console.log('LIPS raw:', JSON.stringify(lipsData, null, 2));
+  console.log('LIKP raw:', JSON.stringify(likpData, null, 2));
+  console.groupEnd();
+
   if (!lipsData.length) {
     const err = new Error('SAP returned no delivery line items (LIPS). Verify delivery numbers exist in SAP with WERKS 3012 and quantity > 0.');
     err.statusCode = 422;
@@ -692,19 +864,23 @@ async function fetchSapCustomsData(deliveries, req) {
     customers.length ? sapPost('/api/sap/kna1', { customers }) : Promise.resolve({ success: true, data: [] }),
   ]);
 
+  const vbfaData = unwrapSapArray(vbfaBody);
+  const marcData = unwrapSapArray(marcBody);
+  const kna1Data = unwrapSapArray(kna1Body);
+
+  console.group('[SAP customs] Round 2 results');
+  console.log('VBFA lineItems sent:', JSON.stringify(lineItems, null, 2));
+  console.log('VBFA raw:', JSON.stringify(vbfaData, null, 2));
+  console.log('MARC raw:', JSON.stringify(marcData, null, 2));
+  console.groupEnd();
+
   if (vbfaBody?.success === false) {
     const err = new Error(`SAP VBFA query failed: ${vbfaBody.error || 'unknown error'}`);
     err.statusCode = 502;
     throw err;
   }
 
-  return {
-    lipsData,
-    likpData,
-    vbfaData: unwrapSapArray(vbfaBody),
-    marcData: unwrapSapArray(marcBody),
-    kna1Data: unwrapSapArray(kna1Body),
-  };
+  return { lipsData, likpData, vbfaData, marcData, kna1Data };
 }
 
 
@@ -716,17 +892,31 @@ async function createClearPortExport(payload) {
     throw err;
   }
 
+  const url = `${clearPort.apiUrl}/v1/cds/exports`;
   try {
-    console.log('[ClearPort] → POST /v1/cds/exports payload:', JSON.stringify(payload, null, 2));
-    const response = await axios.post(`${clearPort.apiUrl}/v1/cds/exports`, payload, {
+    console.group('[ClearPort] POST /v1/cds/exports');
+    console.log('Request payload:', JSON.stringify(payload, null, 2));
+
+    const response = await axios.post(url, payload, {
       timeout: 30000,
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${clearPort.apiToken}`,
+        'X-API-Key': clearPort.apiToken,
       },
       validateStatus: () => true,
+      transformResponse: [(data) => data],  // skip auto-parse — keep raw text
     });
+
+    // Parse manually so we capture the body regardless of Content-Type
+    let rawBody = String(response.data ?? '');
+    let parsedBody = null;
+    try { parsedBody = JSON.parse(rawBody); } catch (_) { /* not JSON */ }
+
+    console.log('Response status:', response.status);
+    console.log('Response headers:', JSON.stringify(response.headers, null, 2));
+    console.log('Response body:', rawBody || '(empty)');
+    console.groupEnd();
 
     if (response.status === 401) {
       const err = new Error('ClearPort rejected the API token.');
@@ -739,13 +929,13 @@ async function createClearPortExport(payload) {
       throw err;
     }
     if (response.status < 200 || response.status >= 300) {
-      const detail = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+      const detail = rawBody || `HTTP ${response.status} with no response body`;
       const err = new Error(`ClearPort create failed (${response.status}): ${detail}`);
       err.statusCode = 502;
       throw err;
     }
 
-    const body = response.data || {};
+    const body = parsedBody || {};
     if (body.success === false) {
       const detail = Array.isArray(body.errorMessages) && body.errorMessages.length
         ? body.errorMessages.join(' | ')
@@ -762,11 +952,8 @@ async function createClearPortExport(payload) {
     }
     return { correlationId, response: body };
   } catch (err) {
-    if (err.response) {
-      const detail = typeof err.response.data === 'string' ? err.response.data : JSON.stringify(err.response.data);
-      err.message = `ClearPort create failed (${err.response.status}): ${detail}`;
-      err.statusCode = err.statusCode || 502;
-    } else if (!err.statusCode) {
+    console.groupEnd();
+    if (!err.statusCode) {
       err.statusCode = 502;
       err.message = `Could not reach ClearPort API: ${err.message}`;
     }
@@ -783,16 +970,27 @@ async function downloadClearPortPdf(correlationId) {
     throw err;
   }
 
+  const url = `${clearPort.apiUrl}/v1/cds/exports/${encodeURIComponent(correlationId)}/pdf`;
   try {
-    const response = await axios.get(`${clearPort.apiUrl}/v1/cds/exports/${encodeURIComponent(correlationId)}/pdf`, {
+    console.group('[ClearPort] GET /v1/cds/exports/:correlationId/pdf');
+    console.log('URL:', url);
+
+    const response = await axios.get(url, {
       timeout: 30000,
       headers: {
         Accept: 'application/pdf',
-        Authorization: `Bearer ${clearPort.apiToken}`,
+        'X-API-Key': clearPort.apiToken,
       },
       responseType: 'arraybuffer',
       validateStatus: () => true,
     });
+
+    console.log('Response status:', response.status);
+    if (response.status < 200 || response.status >= 300) {
+      const bodyText = Buffer.from(response.data).toString('utf8');
+      console.error('Response body (error):', bodyText);
+    }
+    console.groupEnd();
 
     if (response.status === 401) {
       const err = new Error('ClearPort rejected the API token while downloading the customs PDF.');
@@ -817,6 +1015,7 @@ async function downloadClearPortPdf(correlationId) {
 
     return Buffer.from(response.data);
   } catch (err) {
+    console.groupEnd();
     if (!err.statusCode) {
       err.statusCode = 502;
       err.message = `Could not download customs PDF: ${err.message}`;
@@ -844,6 +1043,16 @@ async function ensureShipmentFolder(shipment) {
 
 function round3(value) {
   return Number(formatDecimal(value));
+}
+
+
+async function writeShipmentEvent(pool, shipmentId, category, description) {
+  await pool.request()
+    .input('shipmentId',  sql.BigInt,        shipmentId)
+    .input('category',    sql.NVarChar(50),  category)
+    .input('description', sql.NVarChar(500), description)
+    .query(`INSERT INTO Logistics.dbo.ShipmentEvents (shipmentID, eventCategory, eventDescription)
+            VALUES (@shipmentId, @category, @description)`);
 }
 
 
@@ -1251,6 +1460,121 @@ router.get('/queue/:mode', async (req, res) => {
 });
 
 
+// ── Bulk mark collected ───────────────────────────────────────────────────────
+router.post('/mark-collected-bulk', async (req, res) => {
+  const shipmentIds = normalizeIdList(req.body.shipmentIDs);
+  if (!shipmentIds.length) return res.status(400).json({ success: false, error: 'No shipments selected.' });
+
+  const pool = await getPool();
+  const completed = [];
+  const failed    = [];
+
+  for (const shipmentId of shipmentIds) {
+    try {
+      const result = await pool.request()
+        .input('shipmentId', sql.BigInt, shipmentId)
+        .query(`
+          UPDATE Logistics.dbo.ShipmentMain
+          SET collectionStatus = 1, actualCollection = GETDATE()
+          WHERE shipmentID = @shipmentId
+            AND ISNULL(shipmentCancelled, 0) = 0
+            AND ISNULL(collectionStatus, 0) = 0;
+          SELECT @@ROWCOUNT AS affectedRows;
+        `);
+      if (!result.recordset[0]?.affectedRows) throw new Error('Already collected or not found.');
+      const eventDesc = String(req.body.description || 'Shipment marked as collected').trim();
+      await writeShipmentEvent(pool, shipmentId, 'COLLECTED', eventDesc);
+      completed.push(shipmentId);
+    } catch (err) {
+      failed.push({ shipmentID: shipmentId, error: err.message });
+    }
+  }
+
+  if (!completed.length) return res.status(409).json({ success: false, error: 'No shipments were updated.', data: { completed, failed } });
+  res.json({ success: true, data: { completed, failed } });
+});
+
+
+// ── Loading list PDF (streams directly to browser) ────────────────────────────
+router.post('/loading-list', async (req, res) => {
+  const shipmentIds = normalizeIdList(req.body.shipmentIDs);
+  if (!shipmentIds.length) return res.status(400).json({ success: false, error: 'No shipments selected.' });
+
+  const pool = await getPool();
+  const shipmentsData = [];
+
+  for (const shipmentId of shipmentIds) {
+    const shipResult = await pool.request()
+      .input('shipmentId', sql.BigInt, shipmentId)
+      .query(`
+        SELECT sm.*, fa.forwarderName
+        FROM Logistics.dbo.ShipmentMain sm
+        OUTER APPLY (SELECT TOP 1 f.forwarderName FROM Logistics.dbo.Forwarders f WHERE f.forwarderID = sm.forwarderID) fa
+        WHERE sm.shipmentID = @shipmentId AND ISNULL(sm.shipmentCancelled, 0) = 0`);
+    if (!shipResult.recordset.length) continue;
+
+    const palletResult = await pool.request()
+      .input('shipmentId', sql.BigInt, shipmentId)
+      .query(`
+        SELECT pm.palletID, pm.palletType, pm.palletLocation,
+          CAST(ISNULL(pm.grossWeight, 0) AS decimal(18,3)) AS grossWeight,
+          pm.palletLength, pm.palletWidth, pm.palletHeight
+        FROM Logistics.dbo.ShipmentLink sl
+        INNER JOIN Logistics.dbo.DeliveryLink dl ON dl.deliveryID = sl.deliveryID
+        INNER JOIN Logistics.dbo.PalletMain   pm ON pm.palletID   = dl.palletID
+        WHERE sl.shipmentID = @shipmentId AND ISNULL(pm.palletRemoved, 0) = 0
+        ORDER BY pm.palletLocation ASC, pm.palletID ASC`);
+
+    shipmentsData.push({ shipment: shipResult.recordset[0], pallets: palletResult.recordset });
+  }
+
+  if (!shipmentsData.length) return res.status(404).json({ success: false, error: 'No valid shipments found.' });
+
+  const pdfBuffer = createLoadingListPdfBuffer(shipmentsData);
+  const filename  = `loading-list-${new Date().toISOString().slice(0, 10)}.pdf`;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Length', pdfBuffer.length);
+  res.end(pdfBuffer);
+});
+
+
+// ── Update planned collection date for multiple shipments ─────────────────────
+router.post('/update-planned-collection', async (req, res) => {
+  const shipmentIds = normalizeIdList(req.body.shipmentIDs);
+  const date        = req.body.date;
+  if (!shipmentIds.length) return res.status(400).json({ success: false, error: 'No shipments selected.' });
+  if (!date) return res.status(400).json({ success: false, error: 'Date is required.' });
+
+  const parsed = new Date(date);
+  if (isNaN(parsed.getTime())) return res.status(400).json({ success: false, error: 'Invalid date.' });
+
+  const pool = await getPool();
+  const request = pool.request();
+  const inClause = createInClause(request, shipmentIds, 'sid');
+  request.input('date', sql.DateTime, parsed);
+  await request.query(`
+    UPDATE Logistics.dbo.ShipmentMain SET plannedCollection = @date
+    WHERE shipmentID IN (${inClause}) AND ISNULL(shipmentCancelled, 0) = 0`);
+
+  res.json({ success: true });
+});
+
+
+// ── Write ShipmentEvents entries ──────────────────────────────────────────────
+router.post('/events', async (req, res) => {
+  const events = req.body.events;
+  if (!Array.isArray(events) || !events.length) return res.status(400).json({ success: false, error: 'events array required.' });
+
+  const pool = await getPool();
+  for (const { shipmentID, category, description } of events) {
+    if (!shipmentID || !category || !description) continue;
+    await writeShipmentEvent(pool, Number(shipmentID), String(category), String(description));
+  }
+  res.json({ success: true });
+});
+
+
 router.post('/cancel', async (req, res) => {
   const shipmentIds = normalizeIdList(req.body.shipmentIDs);
   if (!shipmentIds.length) {
@@ -1293,18 +1617,15 @@ router.post('/cancel', async (req, res) => {
 router.post('/:shipmentId/mark-collected', async (req, res) => {
   try {
     const pool = await getPool();
+    const shipmentId = Number(req.params.shipmentId);
     const result = await pool.request()
-      .input('shipmentId', sql.BigInt, req.params.shipmentId)
+      .input('shipmentId', sql.BigInt, shipmentId)
       .query(`
         UPDATE Logistics.dbo.ShipmentMain
-        SET
-          collectionStatus = 1,
-          actualCollection = GETDATE()
-        WHERE
-          shipmentID = @shipmentId
+        SET collectionStatus = 1, actualCollection = GETDATE()
+        WHERE shipmentID = @shipmentId
           AND ISNULL(shipmentCancelled, 0) = 0
           AND ISNULL(collectionStatus, 0) = 0;
-
         SELECT @@ROWCOUNT AS affectedRows;
       `);
 
@@ -1313,7 +1634,7 @@ router.post('/:shipmentId/mark-collected', async (req, res) => {
       err.statusCode = 409;
       throw err;
     }
-
+    await writeShipmentEvent(pool, shipmentId, 'COLLECTED', 'Shipment marked as collected');
     res.json({ success: true });
   } catch (err) {
     res.status(err.statusCode || 500).json({ success: false, error: err.message });
@@ -1560,7 +1881,7 @@ router.post('/customs/create', async (req, res) => {
 
   for (const shipmentId of shipmentIds) {
     try {
-      const context = await getShipmentContext(shipmentId);
+      const context = await syncShipmentAggregateData(shipmentId);
       const { shipment } = context;
       if (toBool(shipment.shipmentCancelled)) throw new Error('Shipment is cancelled.');
       if (!toBool(shipment.customsRequired)) throw new Error('Shipment is not marked as customs required.');
@@ -1625,6 +1946,172 @@ router.post('/customs/create', async (req, res) => {
       updated: completed.length,
     },
   });
+});
+
+
+// ── Shipment detail (standard modal) ─────────────────────────────────────────
+router.get('/:shipmentId/details', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const shipmentId = Number(req.params.shipmentId);
+
+    const shipmentResult = await pool.request()
+      .input('shipmentId', sql.BigInt, shipmentId)
+      .query(`
+        SELECT sm.*,
+          CAST(ISNULL(sm.customsRequired, 0) AS bit) AS customsRequired,
+          CAST(ISNULL(sm.customsComplete, 0)  AS bit) AS customsComplete,
+          fa.forwarderName
+        FROM Logistics.dbo.ShipmentMain sm
+        OUTER APPLY (
+          SELECT TOP 1 f.forwarderName FROM Logistics.dbo.Forwarders f WHERE f.forwarderID = sm.forwarderID
+        ) fa
+        WHERE sm.shipmentID = @shipmentId`);
+
+    if (!shipmentResult.recordset.length)
+      return res.status(404).json({ success: false, error: 'Shipment not found.' });
+
+    const deliveriesResult = await pool.request()
+      .input('shipmentId', sql.BigInt, shipmentId)
+      .query(`
+        SELECT
+          dm.deliveryID, dm.customerID, dm.deliveryService, dm.picksheetComment,
+          CAST(ISNULL(dm.netWeight,      0) AS decimal(18,3)) AS netWeight,
+          CAST(ISNULL(dm.grossWeight,    0) AS decimal(18,3)) AS grossWeight,
+          CAST(ISNULL(dm.palletCount,    0) AS decimal(18,3)) AS palletCount,
+          CAST(ISNULL(dm.deliveryVolume, 0) AS decimal(18,3)) AS deliveryVolume,
+          d.destinationName
+        FROM Logistics.dbo.ShipmentLink sl
+        INNER JOIN Logistics.dbo.DeliveryMain dm ON dm.deliveryID = sl.deliveryID
+        LEFT  JOIN Logistics.dbo.Destinations d  ON d.destinationID = dm.customerID
+        WHERE sl.shipmentID = @shipmentId
+        ORDER BY dm.deliveryID ASC`);
+
+    res.json({ success: true, data: { shipment: shipmentResult.recordset[0], deliveries: deliveriesResult.recordset } });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+
+// ── Toggle customsRequired (blocked if customsComplete) ───────────────────────
+router.patch('/:shipmentId/customs-required', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const shipmentId = Number(req.params.shipmentId);
+
+    const check = await pool.request()
+      .input('shipmentId', sql.BigInt, shipmentId)
+      .query('SELECT customsComplete FROM Logistics.dbo.ShipmentMain WHERE shipmentID = @shipmentId');
+
+    if (!check.recordset.length)
+      return res.status(404).json({ success: false, error: 'Shipment not found.' });
+    if (toBool(check.recordset[0].customsComplete))
+      return res.status(400).json({ success: false, error: 'Customs is already complete and cannot be changed.' });
+
+    await pool.request()
+      .input('shipmentId', sql.BigInt, shipmentId)
+      .input('required', sql.Bit, toBool(req.body.required) ? 1 : 0)
+      .query(`UPDATE Logistics.dbo.ShipmentMain SET customsRequired = @required
+              WHERE shipmentID = @shipmentId AND ISNULL(customsComplete, 0) = 0`);
+
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+
+// ── Remove a delivery from a shipment ────────────────────────────────────────
+router.delete('/:shipmentId/deliveries/:deliveryId', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const shipmentId = Number(req.params.shipmentId);
+    const deliveryId = Number(req.params.deliveryId);
+
+    await pool.request()
+      .input('shipmentId', sql.BigInt, shipmentId)
+      .input('deliveryId', sql.BigInt, deliveryId)
+      .query('DELETE FROM Logistics.dbo.ShipmentLink WHERE shipmentID = @shipmentId AND deliveryID = @deliveryId');
+
+    const remaining = await pool.request()
+      .input('shipmentId', sql.BigInt, shipmentId)
+      .query('SELECT COUNT(*) AS cnt FROM Logistics.dbo.ShipmentLink WHERE shipmentID = @shipmentId');
+
+    if (remaining.recordset[0].cnt === 0) {
+      await pool.request()
+        .input('shipmentId', sql.BigInt, shipmentId)
+        .query('UPDATE Logistics.dbo.ShipmentMain SET shipmentCancelled = 1 WHERE shipmentID = @shipmentId');
+      return res.json({ success: true, data: { cancelled: true } });
+    }
+
+    await syncShipmentAggregateData(shipmentId);
+    res.json({ success: true, data: { cancelled: false } });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+
+// ── Add deliveries to an existing shipment ────────────────────────────────────
+router.post('/:shipmentId/deliveries', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const shipmentId = Number(req.params.shipmentId);
+    const deliveryIDs = normalizeDeliveryIds(req.body.deliveryIDs);
+
+    if (!deliveryIDs.length)
+      return res.status(400).json({ success: false, error: 'No delivery IDs provided.' });
+
+    const shipmentResult = await pool.request()
+      .input('shipmentId', sql.BigInt, shipmentId)
+      .query('SELECT destinationID FROM Logistics.dbo.ShipmentMain WHERE shipmentID = @shipmentId AND ISNULL(shipmentCancelled, 0) = 0');
+
+    if (!shipmentResult.recordset.length)
+      return res.status(404).json({ success: false, error: 'Shipment not found or cancelled.' });
+
+    const customerId = shipmentResult.recordset[0].destinationID;
+
+    const req2 = pool.request();
+    const inClause = createInClause(req2, deliveryIDs, 'deliveryId');
+    const available = await req2.query(`
+      SELECT dm.deliveryID, dm.customerID
+      FROM Logistics.dbo.DeliveryMain dm
+      LEFT JOIN Logistics.dbo.ShipmentLink sl ON sl.deliveryID = dm.deliveryID
+      WHERE dm.deliveryID IN (${inClause})
+        AND dm.completionStatus = 1
+        AND ISNULL(dm.deliveryCancelled, 0) = 0
+        AND sl.deliveryID IS NULL`);
+
+    if (available.recordset.length !== deliveryIDs.length)
+      return res.status(400).json({ success: false, error: 'One or more deliveries are unavailable (already shipped, incomplete, or cancelled).' });
+
+    const wrongCustomer = available.recordset.filter(d => String(d.customerID) !== String(customerId));
+    if (wrongCustomer.length)
+      return res.status(400).json({ success: false, error: 'All deliveries must belong to the same customer as the shipment.' });
+
+    for (const deliveryId of deliveryIDs) {
+      await pool.request()
+        .input('shipmentId', sql.BigInt, shipmentId)
+        .input('deliveryId', sql.BigInt, deliveryId)
+        .query('INSERT INTO Logistics.dbo.ShipmentLink (shipmentID, deliveryID) VALUES (@shipmentId, @deliveryId)');
+    }
+
+    await syncShipmentAggregateData(shipmentId);
+    res.json({ success: true });
+  } catch (err) { res.status(err.statusCode || 500).json({ success: false, error: err.message }); }
+});
+
+
+// ── Update haulier ────────────────────────────────────────────────────────────
+router.patch('/:shipmentId/forwarder', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const shipmentId = Number(req.params.shipmentId);
+    const forwarderID = toNullableInteger(req.body.forwarderID);
+
+    await pool.request()
+      .input('shipmentId',  sql.BigInt, shipmentId)
+      .input('forwarderId', sql.BigInt, forwarderID)
+      .query(`UPDATE Logistics.dbo.ShipmentMain SET forwarderID = @forwarderId
+              WHERE shipmentID = @shipmentId AND ISNULL(shipmentCancelled, 0) = 0`);
+
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 

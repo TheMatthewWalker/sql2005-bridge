@@ -17,6 +17,8 @@ const sendBtn = document.getElementById('gemini-send');
       return;
     }
     document.getElementById('session-user').textContent = session.username;
+    const heroName = document.getElementById('hero-username');
+    if (heroName) heroName.textContent = session.username;
   } catch {
     window.location.href = '/';
   }

@@ -30,6 +30,7 @@ import palletDataRoutes        from './routes/palletdata.js';
 import packagingDataRoutes     from './routes/packagingdata.js';
 import palletValidationRoutes  from './routes/palletvalidation.js';
 import productionRoutes        from './routes/production.js';
+import productionNexusRoutes  from './routes/productionnexus.js';
 import relatedRecordsRoutes    from './routes/relatedrecords.js';
 import filterRecordsRoutes     from './routes/filterrecords.js';
 import exportXlsxRoutes        from './routes/exportxlsx.js';
@@ -105,7 +106,8 @@ app.use('/api/assignmenttpn', requireLogin,     assignmentTPNRoutes);
 app.use('/api/palletdata', requireLogin,        palletDataRoutes);
 app.use('/api/packagingdata', requireLogin,     packagingDataRoutes);
 app.use('/api/palletvalidation', requireLogin,  palletValidationRoutes);
-app.use('/api/production', requireLogin,        productionRoutes);
+app.use('/api/production',       requireLogin, productionRoutes);
+app.use('/api/productionnexus', requireLogin, productionNexusRoutes);
 app.use('/api/related-records', requireLogin,   relatedRecordsRoutes);
 app.use('/api/filter-records', requireLogin,    filterRecordsRoutes);
 app.use('/api/export-xlsx', requireLogin,       exportXlsxRoutes);
@@ -122,7 +124,8 @@ app.use(express.static(path.join(process.cwd(), "public")));
 
 // ── Department page map — which HTML page requires which department ────────────
 const DEPT_PAGE_MAP = {
-  'production.html':  'production',
+  'production.html':        'production',
+  'production-nexus.html':  'production',
   'logistics.html':   'logistics',
   'warehouse.html':   'warehouse',
   'finance.html':     'finance',
@@ -176,6 +179,22 @@ app.get('/private/images/:file', requireLogin, (req, res) => {
   const filePath = path.join(__dirname, 'private', 'images', req.params.file);
   res.sendFile(filePath);
 });
+
+// ── Production database pool (separate DB, same SQL Server) ──────────────────
+let _productionPool = null;
+export async function getProductionPool() {
+  if (!_productionPool) {
+    _productionPool = new sql.ConnectionPool({
+      user:     config.sqlConfig.user,
+      password: config.sqlConfig.password,
+      server:   config.sqlConfig.server,
+      database: 'Production',
+      options:  { encrypt: false, trustServerCertificate: true },
+    });
+    await _productionPool.connect();
+  }
+  return _productionPool;
+}
 
 export const sqlConfig = {
   user: config.sqlConfig.user,

@@ -79,8 +79,10 @@ router.post('/exports', async (req, res) => {
 
             if (status === 401) {
                 return res.status(502).json({
-                    success: false,
-                    error:   'ClearPort rejected the API token (401 Unauthorised). Check CLEARPORT_API_TOKEN.',
+                    success:         false,
+                    error:           'ClearPort rejected the API token (401 Unauthorised). Check CLEARPORT_API_TOKEN.',
+                    clearportStatus: 401,
+                    clearportBody:   err.response.data,
                 });
             }
             if (status === 429) {

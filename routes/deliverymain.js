@@ -156,6 +156,34 @@ router.get('/completed-unshipped', async (req, res) => {
     }
 });
 
+// ── Available unshipped deliveries for a specific customer (add-to-shipment picker) ──
+router.get('/available-for-shipment/:customerId', async (req, res) => {
+    try {
+        const pool = await getPool();
+        const result = await pool.request()
+            .input('customerId', sql.BigInt, req.params.customerId)
+            .query(`SELECT dm.deliveryID, dm.customerID, dm.dueDate, dm.completionDate,
+                           dm.deliveryService, dm.picksheetComment,
+                           CAST(ISNULL(dm.netWeight,      0) AS decimal(18,3)) AS netWeight,
+                           CAST(ISNULL(dm.grossWeight,    0) AS decimal(18,3)) AS grossWeight,
+                           CAST(ISNULL(dm.palletCount,    0) AS decimal(18,3)) AS palletCount,
+                           CAST(ISNULL(dm.deliveryVolume, 0) AS decimal(18,3)) AS deliveryVolume,
+                           d.destinationName
+                    FROM Logistics.dbo.DeliveryMain dm
+                    LEFT JOIN Logistics.dbo.Destinations  d  ON d.destinationID  = dm.customerID
+                    LEFT JOIN Logistics.dbo.ShipmentLink  sl ON sl.deliveryID    = dm.deliveryID
+                    WHERE dm.customerID = @customerId
+                      AND dm.completionStatus = 1
+                      AND ISNULL(dm.deliveryCancelled, 0) = 0
+                      AND sl.deliveryID IS NULL
+                    ORDER BY dm.deliveryID ASC`);
+        res.json({ success: true, data: result.recordset });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+
 // ── Pallets picked for a delivery (DeliveryMain → DeliveryLink → PalletMain) ──
 router.get('/:deliveryId/pallets', async (req, res) => {
     try {

@@ -884,6 +884,17 @@
     min-height: 80px;
     box-shadow: 0 1px 3px rgba(30,45,69,0.06);
   }
+  .rawsql-result-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .rawsql-result-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
   /* ─── BACK TO HUB LINK ───────────────────────────────────────────────────── */
   .back-link {
     font-family: 'JetBrains Mono', monospace;

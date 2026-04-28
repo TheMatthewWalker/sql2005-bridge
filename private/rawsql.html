@@ -2,13 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Kongsberg Portal — Raw SQL Console</title>
+  <title>Kongsberg Nexus — Raw SQL Console</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
   <link rel="stylesheet" href="./css/production.css">
+  <link rel="stylesheet" href="./css/nexus-common.css">
+  <style>
+    /* Unlock the viewport-locked layout from production.css so the page scrolls */
+    html, body   { height: auto !important; overflow: auto !important; }
+    .app-body    { overflow: visible !important; min-height: calc(100vh - 52px); }
+    .content     { overflow: visible !important; }
+    /* Keep the result area within the viewport; DataTable scrolls horizontally inside it */
+    .rawsql-result              { max-width: 100%; overflow-x: auto; }
+    .rawsql-result .dataTables_wrapper { min-width: 0; }
+  </style>
 </head>
 <body>
 
@@ -16,7 +26,7 @@
 <div class="header">
   <div class="header-left">
     <div class="brand-icon"><div class="brand-icon"><img src="./images/logo32.png" alt="Kongsberg Logo"></div></div>
-    <span class="brand-name">Kongsberg</span>
+    <span class="brand-name">Kongsberg Nexus</span>
     <div class="brand-sep"></div>
     <span class="brand-module">Raw SQL Console</span>
   </div>
@@ -68,6 +78,8 @@
 
       <div class="rawsql-actions">
         <button type="button" class="btn-filter-clear" id="rawsql-clear">Clear</button>
+        <button type="button" class="btn-filter-clear" id="rawsql-export" style="display:none">Export CSV</button>
+        <span id="rawsql-row-count" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted);display:none"></span>
         <button type="button" class="btn-filter-search" id="rawsql-run">Run SQL</button>
       </div>
 
@@ -78,7 +90,12 @@
   </div>
 </div>
 
-<script src="./js/rawsql.js"></script>
+<footer class="footer">
+    <span>Kongsberg Nexus &nbsp;&middot;&nbsp; Authorised access only</span>
+    <span class="footer-right">SQL Console</span>
+  </footer>
+
+  <script src="./js/rawsql.js"></script>
 </body>
 </html>
 

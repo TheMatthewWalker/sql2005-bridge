@@ -549,6 +549,12 @@ body::before {
   color: var(--success);
 }
 
+.lg-selection-msg--warning {
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.25);
+  color: #b45309;
+}
+
 .ps-sections { display: flex; flex-direction: column; gap: 12px; }
 .ps-section {
   background: var(--surface);
@@ -635,6 +641,9 @@ body::before {
 .lg-row { cursor: pointer; }
 .lg-row--selected { background: rgba(8,145,178,0.08); }
 .lg-row--disabled { opacity: 0.45; }
+.booking-row { cursor: pointer; }
+.booking-row:hover td { background: rgba(8,145,178,0.04); }
+.collection-row.lg-row--selected td { background: rgba(8,145,178,0.08); }
 
 .ps-modal-overlay {
   position: fixed;
@@ -659,6 +668,97 @@ body::before {
 }
 
 .lg-modal { max-width: 1040px; }
+
+.ps-modal--wide { width: min(1340px, 96vw); }
+
+/* ── Shipment detail modal ─────────────────────────────────────────────────── */
+.sd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.sd-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.sd-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.sd-actions { display: flex; flex-direction: column; gap: 8px; }
+
+/* Customs badge */
+.sd-customs-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sd-badge--none    { background: rgba(141,163,190,0.15); color: var(--text-muted); }
+.sd-badge--required { background: rgba(217,119,6,0.12);  color: #b45309; }
+.sd-badge--complete { background: rgba(5,150,105,0.12);  color: #059669; }
+
+/* Haulier row */
+.sd-haulier-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sd-haulier-row select { flex: 1; min-width: 0; }
+
+/* Delivery table inside the wide panel */
+.sd-delivery-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sd-delivery-table th {
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.sd-delivery-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.sd-delivery-table tr:last-child td { border-bottom: none; }
+.sd-delivery-table .sd-totals-row td { font-weight: 700; background: var(--bg); }
+.sd-remove-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--error);
+  cursor: pointer;
+}
+.sd-remove-btn:hover { background: rgba(220,38,38,0.08); }
+
+/* Available deliveries picker */
+.sd-picker { margin-top: 20px; }
+.sd-picker-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.sd-picker-empty { font-size: 13px; color: var(--text-muted); padding: 10px 0; }
+.sd-picker-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+
+/* Wide-panel two-column layout */
+.sd-wide-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 900px) { .sd-wide-grid { grid-template-columns: 1fr; } }
 
 .ps-modal-header,
 .ps-modal-actions {

@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Kongsberg // User Administration</title>
+  <title>Kongsberg Nexus · User Administration</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/admin.css">
+  <link rel="stylesheet" href="./css/nexus-common.css">
 </head>
 <body>
 
@@ -70,6 +71,15 @@
             <line x1="4" y1="10" x2="7" y2="10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
           </svg>
           Audit Log
+        </div>
+
+        <div class="nav-item" data-section="sql">
+          <svg class="nav-icon" viewBox="0 0 14 14" fill="none">
+            <rect x="1" y="1" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M4 5l2.5 2L4 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="8" y1="9" x2="11" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          SQL Console
         </div>
 
       </div>
@@ -164,6 +174,33 @@
               <tr><td colspan="5" class="loading-cell"><div class="spinner"></div> Loading…</td></tr>
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <!-- ── SQL CONSOLE ──────────────────────────────────────────────────── -->
+      <section class="section" id="section-sql">
+        <div class="section-header">
+          <div>
+            <div class="section-title">SQL Console</div>
+            <div class="section-sub">Ad-hoc queries via the /query endpoint · Destructive keywords blocked for non-admins · All commands are logged</div>
+          </div>
+          <div class="section-actions">
+            <span id="sql-row-count" class="sql-count" style="display:none"></span>
+            <button type="button" class="btn-secondary" id="sql-export" style="display:none">Export CSV</button>
+          </div>
+        </div>
+
+        <textarea id="sql-input" class="sql-input" rows="7" spellcheck="false"
+          placeholder="SELECT TOP 100 * FROM dbo.Batches;&#10;-- Ctrl+Enter to run"></textarea>
+
+        <div class="sql-actions">
+          <span class="sql-hint">Ctrl+Enter to run</span>
+          <button type="button" class="btn-secondary" id="sql-clear">Clear</button>
+          <button type="button" class="btn-primary"   id="sql-run">Run SQL</button>
+        </div>
+
+        <div id="sql-result" class="sql-result">
+          <div class="empty-state">No query executed yet.</div>
         </div>
       </section>
 
@@ -263,6 +300,11 @@
       </div>
     </div>
   </div>
+
+  <footer class="footer">
+    <span>Kongsberg Nexus &nbsp;&middot;&nbsp; Authorised access only</span>
+    <span class="footer-right">Administration</span>
+  </footer>
 
   <script src="./js/admin.js"></script>
 </body>

@@ -1,5 +1,25 @@
 'use strict';
 
+let lastRows = [];
+
+function exportCsv() {
+  if (!lastRows.length) return;
+  const cols  = Object.keys(lastRows[0]);
+  const lines = [
+    cols.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','),
+    ...lastRows.map(row =>
+      cols.map(c => `"${String(row[c] ?? '').replace(/"/g, '""')}"`).join(',')
+    ),
+  ];
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `rawsql-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // Basic session check reused from portal page
 async function sessionOk() {
   const d = await fetch('/session-check').then(r => r.json());
@@ -74,8 +94,15 @@ async function runRawSql() {
     const rows = data.recordset || [];
 
     if (rows.length > 0) {
+      lastRows = rows;
       resultEl.innerHTML = buildTableHTML(rows, 'rawsql-dt');
-      try { new DataTable('#rawsql-dt', { pageLength: 10, scrollX: true }); } catch (_) {}
+      try {
+        new DataTable('#rawsql-dt', { pageLength: 25, scrollX: true });
+      } catch (_) {}
+      const exportBtn = document.getElementById('rawsql-export');
+      const countEl  = document.getElementById('rawsql-row-count');
+      if (exportBtn) exportBtn.style.display = '';
+      if (countEl)  { countEl.textContent = `${rows.length} row(s)`; countEl.style.display = ''; }
       updateBadge(`${rows.length} row(s)`);
     } else {
       const affected = Array.isArray(data.rowsAffected)
@@ -93,9 +120,10 @@ async function runRawSql() {
 
 // Wire up events once DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  const inputEl  = document.getElementById('rawsql-input');
-  const runBtn   = document.getElementById('rawsql-run');
-  const clearBtn = document.getElementById('rawsql-clear');
+  const inputEl   = document.getElementById('rawsql-input');
+  const runBtn    = document.getElementById('rawsql-run');
+  const clearBtn  = document.getElementById('rawsql-clear');
+  const exportBtn = document.getElementById('rawsql-export');
 
   if (inputEl) {
     inputEl.addEventListener('keydown', e => {
@@ -105,16 +133,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-  if (runBtn) {
-    runBtn.addEventListener('click', () => runRawSql());
-  }
+  if (runBtn)    runBtn.addEventListener('click', () => runRawSql());
+  if (exportBtn) exportBtn.addEventListener('click', exportCsv);
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       inputEl.value = '';
-      const resultEl = document.getElementById('rawsql-result');
-      if (resultEl) {
-        resultEl.innerHTML = '<div class="report-empty">No query executed yet.</div>';
-      }
+      lastRows = [];
+      const resultEl  = document.getElementById('rawsql-result');
+      const countEl   = document.getElementById('rawsql-row-count');
+      if (resultEl)  resultEl.innerHTML = '<div class="report-empty">No query executed yet.</div>';
+      if (exportBtn) exportBtn.style.display = 'none';
+      if (countEl)   countEl.style.display   = 'none';
       updateBadge('Idle');
     });
   }

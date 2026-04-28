@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await Promise.all([loadPending(), loadUsers()]);
   setupNav();
   setupSearch();
+  setupSqlConsole();
 
   // Load audit when that section is first opened
   document.querySelector('[data-section="audit"]')
@@ -383,4 +384,111 @@ function formatDateTime(val) {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+// ── SQL Console ───────────────────────────────────────────────────────────────
+let sqlLastRows = [];
+
+function buildSqlTable(rows) {
+  const cols = Object.keys(rows[0]);
+  let h = '<div class="table-wrap"><table><thead><tr>';
+  cols.forEach(c => { h += `<th>${esc(c)}</th>`; });
+  h += '</tr></thead><tbody>';
+  rows.forEach(row => {
+    h += '<tr>';
+    cols.forEach(c => { h += `<td>${esc(String(row[c] ?? ''))}</td>`; });
+    h += '</tr>';
+  });
+  h += '</tbody></table></div>';
+  return h;
+}
+
+function exportSqlCsv() {
+  if (!sqlLastRows.length) return;
+  const cols  = Object.keys(sqlLastRows[0]);
+  const lines = [
+    cols.map(c  => `"${String(c).replace(/"/g, '""')}"`).join(','),
+    ...sqlLastRows.map(row =>
+      cols.map(c => `"${String(row[c] ?? '').replace(/"/g, '""')}"`).join(',')
+    ),
+  ];
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `sql-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function runSql() {
+  const inputEl   = document.getElementById('sql-input');
+  const resultEl  = document.getElementById('sql-result');
+  const countEl   = document.getElementById('sql-row-count');
+  const exportBtn = document.getElementById('sql-export');
+  if (!inputEl || !resultEl) return;
+
+  const query = inputEl.value.trim();
+  if (!query) return;
+
+  sqlLastRows = [];
+  if (countEl)   { countEl.textContent = ''; countEl.style.display = 'none'; }
+  if (exportBtn) exportBtn.style.display = 'none';
+  resultEl.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Running…</div>';
+
+  try {
+    const res  = await fetch('/query', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ query }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.success === false) {
+      resultEl.innerHTML = `<div class="empty-state error-state">✕ ${esc((data && data.error) || `HTTP ${res.status}`)}</div>`;
+      return;
+    }
+
+    const rows = data.recordset || [];
+    if (rows.length) {
+      sqlLastRows = rows;
+      resultEl.innerHTML = buildSqlTable(rows);
+      if (countEl)   { countEl.textContent = `${rows.length} row(s)`; countEl.style.display = ''; }
+      if (exportBtn) exportBtn.style.display = '';
+    } else {
+      const affected = Array.isArray(data.rowsAffected)
+        ? data.rowsAffected.reduce((s, v) => s + (v || 0), 0)
+        : (data.rowsAffected || 0);
+      resultEl.innerHTML = `<div class="empty-state">Query OK — ${affected} row(s) affected.</div>`;
+    }
+  } catch (err) {
+    resultEl.innerHTML = `<div class="empty-state error-state">✕ ${esc(err.message)}</div>`;
+  }
+}
+
+function setupSqlConsole() {
+  const inputEl   = document.getElementById('sql-input');
+  const runBtn    = document.getElementById('sql-run');
+  const clearBtn  = document.getElementById('sql-clear');
+  const exportBtn = document.getElementById('sql-export');
+
+  if (inputEl) {
+    inputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); runSql(); }
+    });
+  }
+  if (runBtn)    runBtn.addEventListener('click', runSql);
+  if (exportBtn) exportBtn.addEventListener('click', exportSqlCsv);
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      if (inputEl) inputEl.value = '';
+      sqlLastRows = [];
+      const resultEl  = document.getElementById('sql-result');
+      const countEl   = document.getElementById('sql-row-count');
+      const exportBtn = document.getElementById('sql-export');
+      if (resultEl)  resultEl.innerHTML = '<div class="empty-state">No query executed yet.</div>';
+      if (countEl)   countEl.style.display = 'none';
+      if (exportBtn) exportBtn.style.display = 'none';
+    });
+  }
 }

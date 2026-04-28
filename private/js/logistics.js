@@ -7,6 +7,7 @@ let shipmentRows = [];
 let selectedDeliveryIds = new Set();
 let selectedBookingShipmentIds = new Set();
 let selectedCustomsShipmentIds = new Set();
+let selectedCollectionIds = new Set();
 let latestShipment = null;
 let currentShipmentView = null;
 let approvedForwarders = null;
@@ -216,7 +217,12 @@ async function runShipmentQueue(mode) {
       document.getElementById('result-body').innerHTML = `<div class="sap-error">No ${esc(view.title.toLowerCase())} shipments are currently available.</div>`;
       return;
     }
-    renderShipmentQueue(mode);
+    if (mode === 'awaiting-collection') {
+      selectedCollectionIds = new Set();
+      renderAwaitingCollection();
+    } else {
+      renderShipmentQueue(mode);
+    }
   } catch (err) {
     document.getElementById('result-body').innerHTML = `<div class="sap-error">${esc(err.message)}</div>`;
   }
@@ -333,7 +339,7 @@ function renderCustomsDocuments() {
       return `<tr class="ps-row customs-row" data-id="${esc(String(row.shipmentID))}"><td class="lg-check-cell"><input type="checkbox" class="customs-check" data-id="${esc(String(row.shipmentID))}"></td><td>${esc(shipmentRef)}</td><td>${esc(formatDisplayDate(plannedDate))}</td><td>${esc(row.forwarderName || '')}</td><td>${esc(row.destinationName || '-')}</td><td>${esc(row.customsID || '')}</td></tr>`;
     }).join('');
 
-  const noticeClass = customsBatchNotice?.type === 'success' ? ' lg-selection-msg--success' : '';
+  const noticeClass = customsBatchNotice?.type === 'success' ? ' lg-selection-msg--success' : customsBatchNotice?.type === 'warning' ? ' lg-selection-msg--warning' : '';
   const noticeHtml = customsBatchNotice
     ? `<div id="customs-selection-msg" class="lg-selection-msg${noticeClass}">${esc(customsBatchNotice.text)}</div>`
     : '<div id="customs-selection-msg" class="lg-selection-msg hidden"></div>';
@@ -358,6 +364,10 @@ function bindShipmentQueueEvents(mode) {
 function bindShipmentBookingEvents() {
   document.querySelectorAll('.ps-section-header').forEach(header => header.addEventListener('click', () => header.closest('.ps-section').classList.toggle('ps-section--collapsed')));
   document.querySelectorAll('.booking-check').forEach(input => input.addEventListener('change', onShipmentBookingToggle));
+  document.querySelectorAll('.booking-row').forEach(row => row.addEventListener('click', e => {
+    if (e.target.closest('.lg-check-cell')) return;
+    openShipmentDetailModal(Number(row.dataset.id));
+  }));
   document.getElementById('booking-clear-btn').addEventListener('click', () => {
     selectedBookingShipmentIds = new Set();
     document.querySelectorAll('.booking-check').forEach(input => { input.checked = false; });
@@ -513,14 +523,22 @@ async function submitCustomsDocuments() {
 
     const completed = json.data?.completed || [];
     const failed = json.data?.failed || [];
-    const completedRefs = completed.map(item => item.shipmentRef).join(', ');
-    const failedRefs = failed.map(item => `${item.shipmentRef}: ${item.error}`).join(' | ');
+
+    const lines = [];
+    for (const item of completed) {
+      if (item.pdfSaved) {
+        lines.push(`${item.shipmentRef}: declaration created and PDF saved.`);
+      } else {
+        lines.push(`${item.shipmentRef}: declaration created in ClearPort (ID: ${item.customsID}) — PDF not yet ready: ${item.pdfError || 'unknown error'}.`);
+      }
+    }
+    for (const item of failed) {
+      lines.push(`${item.shipmentRef}: failed — ${item.error}`);
+    }
+
     customsBatchNotice = {
-      type: completed.length ? 'success' : 'error',
-      text: [
-        completed.length ? `Completed ${completed.length} shipment(s)${completedRefs ? `: ${completedRefs}` : ''}.` : '',
-        failed.length ? `Failed ${failed.length}: ${failedRefs}` : '',
-      ].filter(Boolean).join(' '),
+      type: completed.length ? (completed.every(i => i.pdfSaved) ? 'success' : 'warning') : 'error',
+      text: lines.join(' '),
     };
 
     await runCustomsDocuments();
@@ -867,6 +885,581 @@ async function showPickedPallets(deliveryId, destName) {
     document.querySelector('#ps-modal-overlay .ps-modal-body').innerHTML = `<div class="sap-error" style="padding:24px">${esc(err.message)}</div>`;
   }
 }
+// ── Awaiting Collection — grouped/sorted renderer ─────────────────────────────
+
+function renderAwaitingCollection() {
+  const grouped = shipmentRows.reduce((acc, row) => {
+    const key = row.forwarderName || 'Unassigned';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(row);
+    return acc;
+  }, {});
+
+  const sections = Object.keys(grouped).sort((a, b) => a.localeCompare(b)).map(name => {
+    const rows = grouped[name]
+      .slice()
+      .sort((a, b) => {
+        const aD = new Date(a.plannedCollection || 0).getTime();
+        const bD = new Date(b.plannedCollection || 0).getTime();
+        return aD - bD || Number(a.shipmentID || 0) - Number(b.shipmentID || 0);
+      })
+      .map(row => {
+        const ref  = String(row.shipmentID || '').padStart(8, '0');
+        const date = row.plannedCollection ? new Date(row.plannedCollection).toLocaleDateString('en-GB') : '—';
+        return `<tr class="ps-row collection-row" data-id="${esc(String(row.shipmentID))}" data-haulier="${esc(name)}">
+          <td class="lg-check-cell"><input type="checkbox" class="collection-check" data-id="${esc(String(row.shipmentID))}"></td>
+          <td>${esc(ref)}</td>
+          <td>${esc(date)}</td>
+          <td>${esc(row.trackingNumber || '')}</td>
+          <td>${esc(row.destinationName || '—')}</td>
+        </tr>`;
+      }).join('');
+
+    return `<div class="ps-section"><div class="ps-section-header"><span class="ps-section-dot ps-section-dot--today"></span><span class="ps-section-title">${esc(name)}</span><span class="ps-section-count">${grouped[name].length}</span><span class="ps-chevron">v</span></div><div class="ps-section-body"><table class="ps-table"><thead><tr><th></th><th>Shipment</th><th>Planned Collection</th><th>Tracking</th><th>Destination</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  }).join('');
+
+  document.getElementById('result-body').innerHTML = `
+    <div class="lg-actions">
+      <div><div class="lg-selection-title">Awaiting Collection</div>
+      <div class="toolbar-hint" id="collection-hint">Select shipments, then use the actions below.</div></div>
+      <div class="toolbar-spacer"></div>
+      <button class="btn-secondary" id="col-clear-btn"    disabled>Clear</button>
+      <button class="btn-secondary" id="col-date-btn"     disabled>Update Date</button>
+      <button class="btn-secondary" id="col-loading-btn"  disabled>Loading List</button>
+      <button class="btn-submit"    id="col-collect-btn"  disabled>Mark Collected</button>
+    </div>
+    <div id="collection-msg" class="lg-selection-msg hidden"></div>
+    <div class="ps-sections">${sections}</div>`;
+
+  bindAwaitingCollectionEvents();
+}
+
+function bindAwaitingCollectionEvents() {
+  document.querySelectorAll('.ps-section-header').forEach(h => h.addEventListener('click', () => h.closest('.ps-section').classList.toggle('ps-section--collapsed')));
+  document.querySelectorAll('.collection-check').forEach(cb => cb.addEventListener('change', onCollectionToggle));
+  document.getElementById('col-clear-btn').addEventListener('click',   clearCollectionSelection);
+  document.getElementById('col-date-btn').addEventListener('click',    openUpdateCollectionDateModal);
+  document.getElementById('col-loading-btn').addEventListener('click', downloadLoadingList);
+  document.getElementById('col-collect-btn').addEventListener('click', markCollectedBulk);
+}
+
+function onCollectionToggle(e) {
+  const id = Number(e.target.dataset.id);
+  if (e.target.checked) selectedCollectionIds.add(id); else selectedCollectionIds.delete(id);
+  updateCollectionUI();
+}
+
+function clearCollectionSelection() {
+  selectedCollectionIds = new Set();
+  document.querySelectorAll('.collection-check').forEach(cb => { cb.checked = false; });
+  updateCollectionUI();
+}
+
+function getSelectedCollectionRows() {
+  return shipmentRows.filter(r => selectedCollectionIds.has(Number(r.shipmentID)));
+}
+
+function collectionHauliersMixed(rows) {
+  return new Set(rows.map(r => String(r.forwarderID || r.forwarderName || 'unassigned'))).size > 1;
+}
+
+function updateCollectionUI() {
+  const count   = selectedCollectionIds.size;
+  const hint    = document.getElementById('collection-hint');
+  const msg     = document.getElementById('collection-msg');
+  if (hint) hint.textContent = count ? `${count} shipment(s) selected.` : 'Select shipments, then use the actions below.';
+  if (msg && !count) msg.classList.add('hidden');
+  ['col-clear-btn', 'col-date-btn', 'col-loading-btn', 'col-collect-btn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = count === 0;
+  });
+}
+
+function showCollectionMsg(text, isError = true) {
+  const msg = document.getElementById('collection-msg');
+  if (!msg) return;
+  msg.textContent = text;
+  msg.className = `lg-selection-msg${isError ? '' : ' lg-selection-msg--success'}`;
+  msg.classList.remove('hidden');
+}
+
+async function downloadLoadingList() {
+  const ids = [...selectedCollectionIds];
+  if (!ids.length) return;
+  try {
+    showCollectionMsg('Generating loading list…', false);
+    const res = await fetch('/api/shipmentmain/loading-list', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ shipmentIDs: ids }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error || 'Failed to generate loading list');
+    }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `loading-list-${new Date().toISOString().slice(0, 10)}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showCollectionMsg('Loading list downloaded.', false);
+  } catch (err) { showCollectionMsg(err.message); }
+}
+
+function openUpdateCollectionDateModal() {
+  const ids = [...selectedCollectionIds];
+  if (!ids.length) return;
+  openModal(`<div class="ps-modal" style="max-width:400px">
+    <div class="ps-modal-header">
+      <div><div class="ps-modal-title">Update Planned Collection</div><div class="ps-modal-sub">${ids.length} shipment(s)</div></div>
+      <button class="ps-modal-close" onclick="closePickModal()">×</button>
+    </div>
+    <div class="ps-modal-body">
+      <div class="tf-field"><label class="tf-label">New Planned Collection Date</label>
+        <input class="tf-input" type="date" id="col-new-date" value="${new Date().toISOString().slice(0, 10)}">
+      </div>
+      <div id="col-date-result" style="margin-top:8px;font-size:13px;color:var(--error)"></div>
+    </div>
+    <div class="ps-modal-actions">
+      <button class="btn-secondary" onclick="closePickModal()">Cancel</button>
+      <button class="btn-submit" id="col-date-submit">Update</button>
+    </div>
+  </div>`);
+  document.getElementById('col-date-submit').addEventListener('click', () => submitUpdateCollectionDate(ids));
+}
+
+async function submitUpdateCollectionDate(ids) {
+  const date   = document.getElementById('col-new-date').value;
+  const result = document.getElementById('col-date-result');
+  const btn    = document.getElementById('col-date-submit');
+  if (!date) { result.textContent = 'Please select a date.'; return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/shipmentmain/update-planned-collection', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ shipmentIDs: ids, date }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to update date');
+    closePickModal();
+    await runShipmentQueue('awaiting-collection');
+  } catch (err) {
+    result.textContent = err.message;
+    btn.disabled = false; btn.textContent = 'Update';
+  }
+}
+
+function markCollectedBulk() {
+  const rows = getSelectedCollectionRows();
+  if (!rows.length) return;
+
+  const mixed = collectionHauliersMixed(rows);
+  const now   = new Date().toLocaleString('en-GB');
+
+  openModal(`<div class="ps-modal">
+    <div class="ps-modal-header">
+      <div><div class="ps-modal-title">Mark as Collected</div>
+      <div class="ps-modal-sub">${rows.length} shipment(s)${mixed ? ' — <span style="color:#b45309">multiple hauliers selected</span>' : ''}</div></div>
+      <button class="ps-modal-close" onclick="closePickModal()">×</button>
+    </div>
+    <div class="ps-modal-body">
+      ${mixed ? `<div class="lg-selection-msg lg-selection-msg--warning" style="margin-bottom:16px">These shipments are assigned to different hauliers. Please confirm they are being collected together on the same vehicle.</div>` : ''}
+      <div class="transfer-form">
+        <div class="tf-row">
+          <div class="tf-field"><label class="tf-label">Operator Name</label><input class="tf-input" id="cl-operator" type="text" placeholder="e.g. Jim Smith"></div>
+          <div class="tf-field"><label class="tf-label">Driver Name</label><input class="tf-input" id="cl-driver" type="text" placeholder="e.g. Dave Jones"></div>
+        </div>
+        <div class="tf-row">
+          <div class="tf-field"><label class="tf-label">Vehicle Registration</label><input class="tf-input" id="cl-reg" type="text" placeholder="e.g. AB12 CDE"></div>
+          <div class="tf-field"><label class="tf-label">Trailer Number</label><input class="tf-input" id="cl-trailer" type="text" placeholder="e.g. TRL-456"></div>
+        </div>
+        <div class="tf-row">
+          <div class="tf-field tf-field--wide"><label class="tf-label">Timestamp (auto)</label><input class="tf-input" value="${esc(now)}" readonly></div>
+        </div>
+        <div id="cl-result" style="margin-top:8px;font-size:13px;color:var(--error)"></div>
+      </div>
+    </div>
+    <div class="ps-modal-actions">
+      <button class="btn-secondary" onclick="closePickModal()">Cancel</button>
+      <button class="btn-submit" id="cl-submit-btn">${mixed ? 'Confirm (Mixed Hauliers)' : 'Confirm'}</button>
+    </div>
+  </div>`);
+
+  document.getElementById('cl-submit-btn').addEventListener('click', () => submitMarkCollected(rows, mixed));
+}
+
+async function submitMarkCollected(rows, mixed) {
+  const operator = document.getElementById('cl-operator').value.trim();
+  const driver   = document.getElementById('cl-driver').value.trim();
+  const reg      = document.getElementById('cl-reg').value.trim();
+  const trailer  = document.getElementById('cl-trailer').value.trim();
+  const result   = document.getElementById('cl-result');
+  const btn      = document.getElementById('cl-submit-btn');
+
+  if (!operator) { result.textContent = 'Operator name is required.'; return; }
+
+  const description = [
+    `operator=${operator}`,
+    driver  ? `driver=${driver}`   : null,
+    reg     ? `reg=${reg}`         : null,
+    trailer ? `trailer=${trailer}` : null,
+  ].filter(Boolean).join(' | ');
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  try {
+    // Write WARNING events first if mixed hauliers
+    if (mixed) {
+      const haulierNames = [...new Set(rows.map(r => r.forwarderName || 'Unassigned'))].join(', ');
+      await fetch('/api/shipmentmain/events', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ events: rows.map(r => ({
+          shipmentID:  r.shipmentID,
+          category:    'WARNING',
+          description: `Multi-haulier collection confirmed. Hauliers: ${haulierNames}`,
+        })) }),
+      });
+    }
+
+    const res = await fetch('/api/shipmentmain/mark-collected-bulk', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shipmentIDs: rows.map(r => r.shipmentID), description }),
+    });
+    const json = await res.json();
+    if (!json.success && !json.data?.completed?.length) throw new Error(json.error || 'Failed to mark as collected');
+    const { completed = [], failed = [] } = json.data || {};
+    closePickModal();
+    showCollectionMsg(
+      [completed.length ? `${completed.length} shipment(s) marked as collected.` : '',
+       failed.length    ? `${failed.length} failed: ${failed.map(f => f.error).join('; ')}` : ''].filter(Boolean).join(' '),
+      failed.length === 0
+    );
+    await runShipmentQueue('awaiting-collection');
+  } catch (err) {
+    result.textContent = err.message;
+    btn.disabled = false; btn.textContent = mixed ? 'Confirm (Mixed Hauliers)' : 'Confirm';
+  }
+}
+
+
+// ── Shipment detail modal ─────────────────────────────────────────────────────
+
+async function openShipmentDetailModal(shipmentId) {
+  openModal(`<div class="ps-modal"><div class="ps-modal-header"><div><div class="ps-modal-title">Shipment Details</div></div><button class="ps-modal-close" onclick="closePickModal()">×</button></div><div class="ps-modal-body"><div class="sap-loading"><div class="spinner"></div>Loading...</div></div><div class="ps-modal-actions"><button class="btn-secondary" onclick="closePickModal()">Close</button></div></div>`);
+  try {
+    const res = await fetch(`/api/shipmentmain/${encodeURIComponent(shipmentId)}/details`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to load shipment details');
+    renderShipmentDetailModal(json.data.shipment, json.data.deliveries);
+  } catch (err) {
+    document.querySelector('#ps-modal-overlay .ps-modal-body').innerHTML = `<div class="sap-error" style="padding:24px">${esc(err.message)}</div>`;
+  }
+}
+
+function renderShipmentDetailModal(shipment, deliveries) {
+  const shipmentRef = String(shipment.shipmentID || '').padStart(8, '0');
+  const incoNorm = (shipment.incoTerms || '').toUpperCase().replace(/\s/g, '');
+  const isExWorks = incoNorm === 'EXW' || incoNorm === 'EXWORKS';
+  const customsComplete = Boolean(shipment.customsComplete);
+  const customsRequired = Boolean(shipment.customsRequired);
+
+  let badgeClass, badgeText, toggleHtml;
+  if (customsComplete) {
+    badgeClass = 'sd-badge--complete'; badgeText = 'Complete'; toggleHtml = '';
+  } else if (customsRequired) {
+    badgeClass = 'sd-badge--required'; badgeText = 'Required';
+    toggleHtml = `<button class="btn-secondary" id="sd-customs-toggle" data-target="false">Set Not Required</button>`;
+  } else {
+    badgeClass = 'sd-badge--none'; badgeText = 'Not Required';
+    toggleHtml = `<button class="btn-secondary" id="sd-customs-toggle" data-target="true">Set Required</button>`;
+  }
+
+  const plannedRaw = shipment.plannedCollection || shipment.plannedDelivery;
+  const plannedStr = plannedRaw ? new Date(plannedRaw).toLocaleDateString('en-GB') : '—';
+
+  document.querySelector('#ps-modal-overlay').innerHTML = `<div class="ps-modal">
+    <div class="ps-modal-header">
+      <div><div class="ps-modal-title">Shipment ${esc(shipmentRef)}</div><div class="ps-modal-sub">${esc(shipment.destinationName || '')} — ${esc(shipment.incoTerms || '')}</div></div>
+      <button class="ps-modal-close" onclick="closePickModal()">×</button>
+    </div>
+    <div class="ps-modal-body">
+      <div class="sd-grid">
+        <div class="sd-section">
+          <div class="sd-section-title">Details</div>
+          <table style="font-size:13px;width:100%;border-collapse:collapse">
+            <tr><td style="padding:4px 0;color:var(--text-muted);width:110px">Destination</td><td>${esc(shipment.destinationName || '—')}</td></tr>
+            <tr><td style="padding:4px 0;color:var(--text-muted)">Planned Date</td><td>${esc(plannedStr)}</td></tr>
+            <tr><td style="padding:4px 0;color:var(--text-muted)">Incoterms</td><td>${esc(shipment.incoTerms || '—')}</td></tr>
+            <tr><td style="padding:4px 0;color:var(--text-muted)">Gross Weight</td><td>${esc(String(shipment.grossWeight ?? '—'))} kg</td></tr>
+            <tr><td style="padding:4px 0;color:var(--text-muted)">Net Weight</td><td>${esc(String(shipment.netWeight ?? '—'))} kg</td></tr>
+            <tr><td style="padding:4px 0;color:var(--text-muted)">Pallets</td><td>${esc(String(shipment.palletCount ?? '—'))}</td></tr>
+          </table>
+        </div>
+        <div class="sd-section">
+          <div class="sd-section-title">Customs</div>
+          <div class="sd-customs-row">
+            <span class="sd-badge ${esc(badgeClass)}">${esc(badgeText)}</span>
+            ${toggleHtml}
+            <span id="sd-customs-result" style="font-size:12px;color:var(--error)"></span>
+          </div>
+          ${shipment.customsID ? `<div style="margin-top:8px;font-size:12px;color:var(--text-muted)">ID: ${esc(String(shipment.customsID))}</div>` : ''}
+        </div>
+      </div>
+      <div class="sd-section" style="margin-bottom:16px">
+        <div class="sd-section-title">Haulier</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Current: <strong>${esc(shipment.forwarderName || 'Unassigned')}</strong></div>
+        <div class="sd-haulier-row">
+          <select class="tf-input" id="sd-forwarder-select"><option value="">Loading…</option></select>
+          <button class="btn-secondary" id="sd-forwarder-save">Save</button>
+          <span id="sd-forwarder-result" style="font-size:12px;color:var(--text-muted)"></span>
+        </div>
+      </div>
+      <div class="sd-section">
+        <div class="sd-section-title">Actions</div>
+        <div class="sd-actions">
+          <button class="btn-secondary" id="sd-packing-list-btn">Recreate Packing List</button>
+          <div id="sd-packing-list-result" style="font-size:12px;color:var(--text-muted)"></div>
+          ${isExWorks ? `<button class="btn-secondary" id="sd-email-btn">Resend Collection Email</button><div id="sd-email-result" style="font-size:12px;color:var(--text-muted)"></div>` : ''}
+          <button class="btn-submit" id="sd-deliveries-btn">Modify Deliveries →</button>
+        </div>
+      </div>
+    </div>
+    <div class="ps-modal-actions"><button class="btn-secondary" onclick="closePickModal()">Close</button></div>
+  </div>`;
+
+  // Load hauliers
+  loadApprovedForwarders().then(forwarders => {
+    const sel = document.getElementById('sd-forwarder-select');
+    if (!sel) return;
+    sel.innerHTML = `<option value="">Select haulier…</option>` +
+      forwarders.map(f => `<option value="${esc(String(f.forwarderID))}" ${String(f.forwarderID) === String(shipment.forwarderID) ? 'selected' : ''}>${esc(f.forwarderName || '')}</option>`).join('');
+  });
+
+  // Customs toggle
+  const customsToggleBtn = document.getElementById('sd-customs-toggle');
+  if (customsToggleBtn) {
+    customsToggleBtn.addEventListener('click', async () => {
+      const target = customsToggleBtn.dataset.target === 'true';
+      const result = document.getElementById('sd-customs-result');
+      customsToggleBtn.disabled = true;
+      try {
+        const res = await fetch(`/api/shipmentmain/${encodeURIComponent(shipment.shipmentID)}/customs-required`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ required: target }),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed');
+        const fresh = await fetch(`/api/shipmentmain/${encodeURIComponent(shipment.shipmentID)}/details`);
+        const freshJson = await fresh.json();
+        if (freshJson.success) renderShipmentDetailModal(freshJson.data.shipment, freshJson.data.deliveries);
+      } catch (err) {
+        if (result) result.textContent = err.message;
+        customsToggleBtn.disabled = false;
+      }
+    });
+  }
+
+  // Haulier save
+  document.getElementById('sd-forwarder-save').addEventListener('click', async () => {
+    const sel = document.getElementById('sd-forwarder-select');
+    const result = document.getElementById('sd-forwarder-result');
+    result.textContent = 'Saving…';
+    try {
+      const res = await fetch(`/api/shipmentmain/${encodeURIComponent(shipment.shipmentID)}/forwarder`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ forwarderID: sel.value || null }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed');
+      result.textContent = 'Saved.';
+      runShipmentBooking();
+    } catch (err) { result.textContent = err.message; }
+  });
+
+  // Packing list
+  document.getElementById('sd-packing-list-btn').addEventListener('click', async () => {
+    if (!window.confirm('This will overwrite any existing packing list files for this shipment. Continue?')) return;
+    const result = document.getElementById('sd-packing-list-result');
+    result.textContent = 'Generating…';
+    try {
+      const res = await fetch(`/api/shipmentmain/${encodeURIComponent(shipment.shipmentID)}/generate-packing-list`, { method: 'POST' });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed');
+      result.innerHTML = (json.data.files || []).map(f => `<a class="lg-doc-link" target="_blank" href="${esc(f.downloadUrl)}">${esc(f.fileName)}</a>`).join(' ');
+    } catch (err) { result.textContent = err.message; }
+  });
+
+  // Resend email
+  const emailBtn = document.getElementById('sd-email-btn');
+  if (emailBtn) {
+    emailBtn.addEventListener('click', async () => {
+      const result = document.getElementById('sd-email-result');
+      result.textContent = 'Sending…';
+      try {
+        const res = await fetch(`/api/shipmentmain/${encodeURIComponent(shipment.shipmentID)}/send-collection-email`, { method: 'POST' });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed');
+        result.textContent = `Sent to ${json.data.sentTo}`;
+      } catch (err) { result.textContent = err.message; }
+    });
+  }
+
+  // Modify deliveries → wide panel
+  document.getElementById('sd-deliveries-btn').addEventListener('click', () => {
+    openShipmentDeliveriesPanel(shipment.shipmentID, shipment, deliveries);
+  });
+}
+
+
+// ── Shipment deliveries wide panel ────────────────────────────────────────────
+
+async function openShipmentDeliveriesPanel(shipmentId, shipment, deliveries) {
+  renderShipmentDeliveriesPanel(shipmentId, shipment, deliveries, [], false);
+  try {
+    const res = await fetch(`/api/deliverymain/available-for-shipment/${encodeURIComponent(shipment.destinationID)}`);
+    const json = await res.json();
+    renderShipmentDeliveriesPanel(shipmentId, shipment, deliveries, json.success ? (json.data || []) : [], true);
+  } catch (err) {
+    renderShipmentDeliveriesPanel(shipmentId, shipment, deliveries, [], true, err.message);
+  }
+}
+
+function renderShipmentDeliveriesPanel(shipmentId, shipment, deliveries, available, loaded, availError) {
+  const shipmentRef = String(shipmentId).padStart(8, '0');
+  const customsComplete = Boolean(shipment.customsComplete);
+
+  const totals = deliveries.reduce((acc, d) => {
+    acc.gross   += Number(d.grossWeight    || 0);
+    acc.net     += Number(d.netWeight      || 0);
+    acc.pallets += Number(d.palletCount    || 0);
+    acc.volume  += Number(d.deliveryVolume || 0);
+    return acc;
+  }, { gross: 0, net: 0, pallets: 0, volume: 0 });
+
+  const linkedRows = deliveries.map(d => `<tr>
+    <td>${esc(String(d.deliveryID))}</td>
+    <td>${esc(d.destinationName || d.deliveryService || '—')}</td>
+    <td>${Number(d.grossWeight    || 0).toFixed(3)}</td>
+    <td>${Number(d.netWeight      || 0).toFixed(3)}</td>
+    <td>${Number(d.deliveryVolume || 0).toFixed(3)}</td>
+    <td>${Number(d.palletCount    || 0).toFixed(0)}</td>
+    <td><button class="sd-remove-btn" data-delivery-id="${esc(String(d.deliveryID))}">Remove</button></td>
+  </tr>`).join('');
+
+  const totalsRow = `<tr class="sd-totals-row">
+    <td colspan="2">Total</td>
+    <td>${totals.gross.toFixed(3)}</td><td>${totals.net.toFixed(3)}</td>
+    <td>${totals.volume.toFixed(3)}</td><td>${totals.pallets.toFixed(0)}</td><td></td>
+  </tr>`;
+
+  const linkedHtml = deliveries.length
+    ? `<table class="sd-delivery-table"><thead><tr><th>Delivery</th><th>Destination</th><th>Gross kg</th><th>Net kg</th><th>Vol CBM</th><th>Pallets</th><th></th></tr></thead><tbody>${linkedRows}${totalsRow}</tbody></table>`
+    : `<div class="sd-picker-empty">No deliveries linked.</div>`;
+
+  let availHtml;
+  if (!loaded) {
+    availHtml = `<div class="sap-loading"><div class="spinner"></div>Loading…</div>`;
+  } else if (availError) {
+    availHtml = `<div class="sap-error">${esc(availError)}</div>`;
+  } else if (!available.length) {
+    availHtml = `<div class="sd-picker-empty">No available deliveries for this customer.</div>`;
+  } else {
+    const availRows = available.map(d => `<tr>
+      <td class="lg-check-cell"><input type="checkbox" class="sd-avail-check" data-id="${esc(String(d.deliveryID))}"></td>
+      <td>${esc(String(d.deliveryID))}</td>
+      <td>${esc(d.destinationName || d.deliveryService || '—')}</td>
+      <td>${Number(d.grossWeight || 0).toFixed(3)}</td>
+      <td>${Number(d.palletCount || 0).toFixed(0)}</td>
+    </tr>`).join('');
+    availHtml = `<table class="sd-delivery-table">
+      <thead><tr><th></th><th>Delivery</th><th>Destination</th><th>Gross kg</th><th>Pallets</th></tr></thead>
+      <tbody>${availRows}</tbody>
+    </table>
+    <div class="sd-picker-actions"><button class="btn-submit" id="sd-add-btn">Add Selected</button></div>
+    <div id="sd-add-result" style="font-size:12px;color:var(--error);margin-top:6px"></div>`;
+  }
+
+  document.querySelector('#ps-modal-overlay').innerHTML = `<div class="ps-modal ps-modal--wide">
+    <div class="ps-modal-header">
+      <div><div class="ps-modal-title">Deliveries — Shipment ${esc(shipmentRef)}</div><div class="ps-modal-sub">${esc(shipment.destinationName || '')}</div></div>
+      <button class="ps-modal-close" onclick="closePickModal()">×</button>
+    </div>
+    <div class="ps-modal-body">
+      <div class="sd-wide-grid">
+        <div>
+          <div class="sd-picker-title">Linked Deliveries</div>
+          ${linkedHtml}
+          <div id="sd-remove-result" style="font-size:12px;color:var(--error);margin-top:8px"></div>
+        </div>
+        <div>
+          <div class="sd-picker-title">Add Deliveries</div>
+          ${availHtml}
+        </div>
+      </div>
+    </div>
+    <div class="ps-modal-actions">
+      <button class="btn-secondary" id="sd-back-btn">← Back</button>
+      <button class="btn-secondary" onclick="closePickModal()">Close</button>
+    </div>
+  </div>`;
+
+  document.getElementById('sd-back-btn').addEventListener('click', () => openShipmentDetailModal(shipmentId));
+
+  // Remove buttons
+  document.querySelectorAll('.sd-remove-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const deliveryId = btn.dataset.deliveryId;
+      const isLast = deliveries.length === 1;
+      let msg = isLast
+        ? 'This is the last delivery — removing it will cancel the entire shipment. Continue?'
+        : 'Remove this delivery from the shipment?';
+      if (customsComplete) msg = 'Warning: customs is already complete for this shipment. Removing this delivery may require re-submission.\n\n' + msg;
+      if (!window.confirm(msg)) return;
+      btn.disabled = true;
+      const result = document.getElementById('sd-remove-result');
+      try {
+        const res = await fetch(`/api/shipmentmain/${encodeURIComponent(shipmentId)}/deliveries/${encodeURIComponent(deliveryId)}`, { method: 'DELETE' });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to remove delivery');
+        if (json.data?.cancelled) { closePickModal(); await runShipmentBooking(); return; }
+        await refreshDeliveriesPanel(shipmentId);
+      } catch (err) {
+        if (result) result.textContent = err.message;
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // Add button
+  const addBtn = document.getElementById('sd-add-btn');
+  if (addBtn) {
+    addBtn.addEventListener('click', async () => {
+      const selected = [...document.querySelectorAll('.sd-avail-check:checked')].map(cb => Number(cb.dataset.id));
+      if (!selected.length) return;
+      const result = document.getElementById('sd-add-result');
+      addBtn.disabled = true; result.textContent = 'Adding…';
+      try {
+        const res = await fetch(`/api/shipmentmain/${encodeURIComponent(shipmentId)}/deliveries`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deliveryIDs: selected }),
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to add deliveries');
+        await refreshDeliveriesPanel(shipmentId);
+      } catch (err) {
+        result.textContent = err.message;
+        addBtn.disabled = false;
+      }
+    });
+  }
+}
+
+async function refreshDeliveriesPanel(shipmentId) {
+  const res = await fetch(`/api/shipmentmain/${encodeURIComponent(shipmentId)}/details`);
+  const json = await res.json();
+  if (!json.success) return;
+  const { shipment, deliveries } = json.data;
+  await openShipmentDeliveriesPanel(shipmentId, shipment, deliveries);
+  runShipmentBooking();
+}
+
+
 function exportResultCSV() {
   if (!currentResult.length) return;
   const columns = Object.keys(currentResult[0]);

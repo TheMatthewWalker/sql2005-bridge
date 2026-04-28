@@ -1,0 +1,225 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   nexus-common.css  —  Kongsberg Nexus  —  Shared internal page chrome
+   Load LAST so it overrides the per-department CSS.
+   Does not touch --accent / --accent2 / --accent-dim (per-page colours).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Extra design tokens not present in individual department CSS ────────── */
+:root {
+  --night2:       #29456F;
+  --night3:       #0F1B30;
+  --border-soft:  #E4EAF2;
+  --accent3:      #3B82F6;
+  --warn:         #D97706;
+  --warn-2:       #F59E0B;
+  --warn-dim:     #FEF3C7;
+  --green-dim:    #D1FAE5;
+  --red-dim:      #FEE2E2;
+  --shadow-sm:    0 1px 3px  rgba(30,45,69,0.08);
+  --shadow-md:    0 4px 12px rgba(30,45,69,0.10);
+  --shadow-lg:    0 16px 40px rgba(30,45,69,0.18);
+  /* Alias so new code can use --night alongside old --sidebar-bg */
+  --night: var(--sidebar-bg);
+}
+
+/* ── HEADER ──────────────────────────────────────────────────────────────── */
+.header {
+  height: 52px;
+  padding: 0 32px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 100;
+  flex-shrink: 0;
+}
+
+.brand-icon { width: 28px; height: 28px; }
+
+.brand-name {
+  font-family: 'Manrope', sans-serif;
+  font-size: 15px; font-weight: 800;
+  color: var(--text); letter-spacing: 0.2px;
+}
+
+.brand-sep { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
+
+.brand-module {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-muted); letter-spacing: 1px;
+}
+
+/* Back-to-hub link — pill button style */
+.back-link {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 4px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.back-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* Department badge in header */
+.dept-badge {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  background: var(--accent-dim);
+  border: 1px solid rgba(0,0,0,0.06);
+  color: var(--accent);
+}
+.dept-badge svg { width: 15px; height: 15px; }
+
+/* User area */
+.user-badge {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text-dim);
+}
+.user-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 6px rgba(5,150,105,0.55);
+  flex-shrink: 0;
+  animation: nexusPulse 2.5s infinite;
+}
+@keyframes nexusPulse {
+  0%   { box-shadow: 0 0 0 0   rgba(5,150,105,0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(5,150,105,0); }
+  100% { box-shadow: 0 0 0 0   rgba(5,150,105,0); }
+}
+
+/* Header buttons */
+.btn-logout {
+  font-family: 'Manrope', sans-serif;
+  font-size: 12px; font-weight: 500;
+  padding: 5px 13px;
+  background: transparent;
+  border: 1px solid var(--border2); border-radius: 6px;
+  color: var(--text-dim); cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.btn-logout:hover { border-color: var(--error); color: var(--error); }
+
+/* ── PAGE TITLE BAR ──────────────────────────────────────────────────────── */
+.page-title-bar {
+  position: relative; z-index: 1;
+  background: linear-gradient(135deg, var(--sidebar-bg) 0%, #0F1B30 100%);
+  padding: 18px 32px 20px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Diagonal stripe texture */
+.page-title-bar::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    -45deg, transparent, transparent 24px,
+    rgba(255,255,255,0.018) 24px, rgba(255,255,255,0.018) 25px
+  );
+  pointer-events: none;
+}
+
+/* Radial blue accent glow */
+.page-title-bar::after {
+  content: '';
+  position: absolute; top: -60px; right: 10%;
+  width: 420px; height: 220px;
+  background: radial-gradient(ellipse, rgba(59,130,246,0.22) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.page-title-inner { position: relative; z-index: 1; }
+
+.page-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px; font-weight: 500;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: rgba(96,165,250,0.8);
+  margin-bottom: 5px;
+}
+
+.page-title {
+  font-size: 22px; font-weight: 800;
+  color: #fff; letter-spacing: -0.2px;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px; letter-spacing: 0.4px;
+  color: rgba(148,168,194,0.75);
+  line-height: 1.5;
+}
+
+/* ── FOOTER ──────────────────────────────────────────────────────────────── */
+.footer {
+  position: relative; z-index: 1;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 13px 32px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-muted);
+  letter-spacing: 0.4px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.footer-right { color: var(--border2); }
+
+/* ── SCROLLBARS ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar               { width: 7px; height: 7px; }
+::-webkit-scrollbar-track         { background: transparent; }
+::-webkit-scrollbar-thumb         { background: var(--border2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover   { background: var(--text-muted); }
+::-webkit-scrollbar-corner        { background: transparent; }
+
+/* ── UTILITY CLASSES (shared) ────────────────────────────────────────────── */
+
+/* Nexus-branded tag chips */
+.nx-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 1px;
+  padding: 2px 6px; border-radius: 4px;
+  text-transform: uppercase; font-weight: 500;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  background: var(--surface2);
+  display: inline-block;
+}
+.nx-tag--live   { color: var(--success); background: var(--green-dim); border-color: rgba(5,150,105,0.35); }
+.nx-tag--warn   { color: var(--warn);    background: var(--warn-dim);  border-color: rgba(217,119,6,0.35); }
+.nx-tag--error  { color: var(--error);   background: var(--red-dim);   border-color: rgba(220,38,38,0.35); }
+.nx-tag--accent { color: var(--accent2); background: var(--accent-dim); border-color: rgba(37,99,235,0.3); }
+.nx-tag--dark   { color: rgba(203,213,225,0.85); background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); }
+
+/* Mono eyebrow label */
+.nx-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px; letter-spacing: 2.5px;
+  text-transform: uppercase; font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Live pulse dot */
+.nx-pulse {
+  display: inline-block;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 0 rgba(5,150,105,0.6);
+  animation: nexusPulse 2.5s infinite;
+}
